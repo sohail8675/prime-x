@@ -1,0 +1,16 @@
+
+/* style.css */
+body {
+    font-family: Arial, sans-serif;
+}
+h1, h2 {
+    margin: 0;
+}
+#kit-list {
+    list-style-type: none;
+    padding: 0;
+}
+#kit-list li {
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
