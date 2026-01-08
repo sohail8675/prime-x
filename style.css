@@ -1,16 +1,20 @@
+::-webkit-scrollbar { 
+  width: 8px; 
+}
 
-/* style.css */
-body {
-    font-family: Arial, sans-serif;
+::-webkit-scrollbar-thumb { 
+  background: #cbd5e1; 
+  border-radius: 9999px; 
 }
-h1, h2 {
-    margin: 0;
+
+::-webkit-scrollbar-track { 
+  background: #f8fafc; 
 }
-#kit-list {
-    list-style-type: none;
-    padding: 0;
+
+.modal { 
+  display: none; 
 }
-#kit-list li {
-    padding: 10px;
-    border-bottom: 1px solid #ccc;
+
+.modal.active { 
+  display: flex; 
 }
