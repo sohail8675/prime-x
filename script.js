@@ -1,73 +1,49 @@
 /* 
-    PRIME X SYSTEM LOGIC
-    Updated Strictly for Sohail
+    PRIME X SYSTEM - FINAL STABLE BUILD
+    Developer: Sohail
 */
 
-// --- STATE MANAGEMENT ---
+// --- 1. GLOBAL VARIABLES ---
 let kits = JSON.parse(localStorage.getItem('primeXKits')) || [];
 let productionLogs = JSON.parse(localStorage.getItem('primeXLogs')) || [];
 let currentUserRole = '';
 
-// --- DOM LOAD ---
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-        location.reload();
-    });
-
-    // --- BUTTON EVENT LISTENERS ---
-    // Add Kit (Only for Data Incharge)
-    const addKitBtn = document.getElementById('addKitBtn');
-    if(addKitBtn) addKitBtn.addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
-    
-    document.getElementById('closeAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
-    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
-    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
-
-    // Transfer Kit
-    document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
-
-    // Line Leader Shift Form
-    document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
-
-    // Manager Filters
-    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
-
-    // Search Inputs
-    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
-    document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
-});
-
-// --- LOGIN ---
+// --- 2. CORE LOGIN FUNCTION (Defined first for stability) ---
 function login(role) {
+    console.log("Logging in as:", role); // Debug for mobile
     currentUserRole = role;
     
-    // Hide Login, Show Main
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('header').classList.remove('hidden');
-    document.getElementById('mainLayout').classList.remove('hidden');
+    // Hide Login, Show Main App
+    const loginSection = document.getElementById('loginSection');
+    const header = document.getElementById('header');
+    const mainLayout = document.getElementById('mainLayout');
     
-    document.getElementById('currentRoleDisplay').innerText = role;
+    if(loginSection) loginSection.classList.add('hidden');
+    if(header) header.classList.remove('hidden');
+    if(mainLayout) mainLayout.classList.remove('hidden');
+    
+    // Update Display Name
+    const roleDisplay = document.getElementById('currentRoleDisplay');
+    if(roleDisplay) roleDisplay.innerText = role;
+    
     setupViewByRole();
 }
 
+// --- 3. VIEW CONTROLLER ---
 function setupViewByRole() {
     const role = currentUserRole;
 
-    // Reset Views
+    // Reset All Views
     document.getElementById('kitManagementView').classList.add('hidden');
     document.getElementById('lineLeaderView').classList.add('hidden');
     document.getElementById('managerView').classList.add('hidden');
     
-    // Hide Add Kit Button by default, show only if Data Incharge
-    document.getElementById('addKitBtn').classList.add('hidden');
+    const addBtn = document.getElementById('addKitBtn');
+    if(addBtn) addBtn.classList.add('hidden');
 
     if (role === 'Data Incharge') {
         document.getElementById('kitManagementView').classList.remove('hidden');
-        document.getElementById('addKitBtn').classList.remove('hidden'); // Show Permission
+        if(addBtn) addBtn.classList.remove('hidden'); // Only Data Incharge sees this
         renderSidebarKits();
         renderClosedKits();
     } else if (role === 'Line Leader') {
@@ -83,24 +59,58 @@ function setupViewByRole() {
     }
 }
 
-// --- KIT MANAGEMENT ---
+// --- 4. EVENT LISTENERS (Wait for DOM) ---
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => location.reload());
+
+    // Add Kit Logic
+    const addKitBtn = document.getElementById('addKitBtn');
+    if(addKitBtn) addKitBtn.addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
+    
+    document.getElementById('closeAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
+
+    // Transfer Logic
+    document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
+
+    // Shift Entry
+    document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
+
+    // Manager
+    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
+
+    // Search
+    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
+    document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
+});
+
+// --- 5. DATA FUNCTIONS ---
+
 function handleAddKit(e) {
     e.preventDefault();
-    if(currentUserRole !== 'Data Incharge') return; // Strict Check
+    if(currentUserRole !== 'Data Incharge') return;
+
+    const newId = document.getElementById('kitIdInput').value.toUpperCase().trim();
+
+    // Prevent Duplicates
+    if(kits.some(k => k.id === newId)) {
+        alert(`Error: Kit ID "${newId}" already exists!`);
+        return;
+    }
 
     const newKit = {
-        id: document.getElementById('kitIdInput').value.toUpperCase(),
+        id: newId,
         model: document.getElementById('modelInput').value.toUpperCase(),
         totalQty: parseInt(document.getElementById('totalQtyInput').value),
         line: document.getElementById('issuedLineInput').value,
         remainingQty: parseInt(document.getElementById('totalQtyInput').value),
-        
-        packedQty: 0,
-        rejectionQty: 0,
-        semiQty: 0,
-        
-        status: 'Active', 
-        isTransferred: false,
+        packedQty: 0, rejectionQty: 0, semiQty: 0,
+        status: 'Active', isTransferred: false,
         createdDate: new Date().toISOString().split('T')[0],
         logs: []
     };
@@ -109,12 +119,10 @@ function handleAddKit(e) {
     saveData();
     document.getElementById('addKitModal').classList.add('hidden');
     e.target.reset();
-    
     renderSidebarKits();
-    if(currentUserRole === 'Manager') updateManagerDashboard();
+    alert("Kit Added!");
 }
 
-// --- RENDER SIDEBAR ---
 function renderSidebarKits() {
     const list = document.getElementById('kitList');
     const searchTerm = document.getElementById('kitSearch').value.toLowerCase();
@@ -140,365 +148,214 @@ function renderSidebarKits() {
         div.className = `kit-item ${transferClass}`;
         div.innerHTML = `
             ${badgeHTML}
-            <div class="flex justify-between items-start">
+            <div class="flex justify-between items-start pointer-events-none">
                 <div>
                     <div class="font-bold text-sm text-slate-800">${kit.id}</div>
                     <div class="text-xs text-slate-500">${kit.model}</div>
                 </div>
                 <div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div>
             </div>
-            <div class="mt-2 flex justify-between text-xs text-slate-500">
+            <div class="mt-2 flex justify-between text-xs text-slate-500 pointer-events-none">
                 <span>Total: ${kit.totalQty}</span>
                 <span>Rem: <b class="text-slate-800">${kit.remainingQty}</b></span>
             </div>
         `;
-        // Fix for "Clicking bug": This is cleaner
-        div.onclick = () => showKitDetails(kit.id);
+        div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
     });
 }
 
-// --- FULL A-Z DETAILS ---
 function showKitDetails(kitId) {
     const kit = kits.find(k => k.id === kitId);
     if (!kit) return;
 
-    // Fix: We target the Card directly to ensure DOM consistency
     const card = document.getElementById('kitDetailCard');
-    
     const historyLogs = productionLogs.filter(log => log.kitId === kit.id);
     
-    let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Line</th><th class="p-2">Used</th><th class="p-2">Output</th><th class="p-2">Rej</th></tr></thead><tbody>';
+    let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Line</th><th class="p-2">Out</th><th class="p-2">Rej</th></tr></thead><tbody>';
     
     if(historyLogs.length > 0) {
         historyLogs.reverse().forEach(log => {
-            logsHTML += `
-                <tr class="border-t border-slate-100">
-                    <td class="p-2 text-slate-600">${log.date}</td>
-                    <td class="p-2 text-slate-600">${log.line}</td>
-                    <td class="p-2 text-slate-600">${log.input || '-'}</td>
-                    <td class="p-2 text-green-600 font-bold">${log.output || '-'}</td>
-                    <td class="p-2 text-red-600">${log.rejection || '-'}</td>
-                </tr>`;
+            logsHTML += `<tr class="border-t border-slate-100"><td class="p-2 text-slate-600">${log.date}</td><td class="p-2">${log.line}</td><td class="p-2 text-green-600 font-bold">${log.output || 0}</td><td class="p-2 text-red-600">${log.rejection || 0}</td></tr>`;
         });
     } else {
-        logsHTML += '<tr><td colspan="5" class="p-2 text-center text-slate-400">No production logs yet.</td></tr>';
+        logsHTML += '<tr><td colspan="4" class="p-2 text-center text-slate-400">No logs.</td></tr>';
     }
     logsHTML += '</tbody></table></div>';
 
-    // PERMISSIONS LOGIC
     let actionsHTML = '';
     
+    // Only Data Incharge sees actions
     if(currentUserRole === 'Data Incharge') {
         if(kit.status === 'Active') {
             actionsHTML = `
-                <div class="mt-6 flex gap-3 border-t border-slate-100 pt-4">
-                    <button onclick="openTransferModal('${kit.id}')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded text-sm font-semibold transition shadow-sm">
-                        Transfer Kit
-                    </button>
-                    <button onclick="closeKit('${kit.id}')" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm font-semibold transition shadow-sm">
-                        Close Kit
-                    </button>
-                </div>
-            `;
-        } else if (kit.status === 'Closed') {
-            // Reopen Button for Closed Kits
+                <div class="mt-4 flex gap-2 border-t border-slate-100 pt-4">
+                    <button onclick="openTransferModal('${kit.id}')" class="flex-1 bg-orange-500 text-white py-2 rounded text-sm font-semibold">Transfer</button>
+                    <button onclick="closeKit('${kit.id}')" class="flex-1 bg-red-600 text-white py-2 rounded text-sm font-semibold">Close</button>
+                    <button onclick="deleteKit('${kit.id}')" class="px-3 bg-slate-800 text-white rounded"><i class="fas fa-trash"></i></button>
+                </div>`;
+        } else {
             actionsHTML = `
-                <div class="mt-6 border-t border-slate-100 pt-4">
-                    <button onclick="reopenKit('${kit.id}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-semibold transition shadow-sm">
-                        <i class="fas fa-undo"></i> Reopen Kit (Make Active)
-                    </button>
-                </div>
-            `;
+                <div class="mt-4 border-t border-slate-100 pt-4 flex gap-2">
+                    <button onclick="reopenKit('${kit.id}')" class="flex-1 bg-blue-600 text-white py-2 rounded text-sm font-semibold">Reopen</button>
+                    <button onclick="deleteKit('${kit.id}')" class="px-3 bg-slate-800 text-white rounded"><i class="fas fa-trash"></i></button>
+                </div>`;
         }
     }
 
-    const transferBanner = kit.isTransferred ? 
-        `<div class="bg-orange-50 border border-orange-200 text-orange-800 p-2 rounded mb-4 text-sm text-center font-bold">
-            <i class="fas fa-info-circle"></i> This Kit has been Transferred
-         </div>` : '';
+    const transferBanner = kit.isTransferred ? `<div class="bg-orange-50 border border-orange-200 text-orange-800 p-2 rounded mb-2 text-xs font-bold">TRANSFERRED</div>` : '';
 
-    // RENDER
     card.innerHTML = `
         ${transferBanner}
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <h3 class="text-3xl font-bold text-slate-900">${kit.id}</h3>
-                <p class="text-slate-500 text-lg">${kit.model}</p>
-            </div>
-            <div class="text-right">
-                <span class="bg-slate-800 text-white px-3 py-1 rounded text-sm font-bold">${kit.line}</span>
-                <p class="text-xs text-slate-400 mt-2">Status: <span class="${kit.status==='Active'?'text-blue-600 font-bold':'text-red-600 font-bold'}">${kit.status}</span></p>
-            </div>
+        <div class="flex justify-between items-center mb-4">
+            <div><h3 class="text-2xl font-bold text-slate-900">${kit.id}</h3><p class="text-slate-500 text-sm">${kit.model}</p></div>
+            <div class="text-right"><span class="bg-slate-800 text-white px-2 py-1 rounded text-xs">${kit.line}</span><p class="text-xs mt-1 ${kit.status==='Active'?'text-blue-600':'text-red-600'} font-bold">${kit.status}</p></div>
         </div>
-        
-        <div class="grid grid-cols-4 gap-4 mb-6 text-center">
-            <div class="bg-slate-50 p-3 rounded border border-slate-200">
-                <p class="text-xs text-slate-500 uppercase">Total Input</p>
-                <p class="text-xl font-bold text-slate-800">${kit.totalQty}</p>
-            </div>
-            <div class="bg-green-50 p-3 rounded border border-green-100">
-                <p class="text-xs text-green-600 uppercase">Packed</p>
-                <p class="text-xl font-bold text-green-700">${kit.packedQty || 0}</p>
-            </div>
-            <div class="bg-red-50 p-3 rounded border border-red-100">
-                <p class="text-xs text-red-600 uppercase">Rejection</p>
-                <p class="text-xl font-bold text-red-700">${kit.rejectionQty || 0}</p>
-            </div>
-            <div class="bg-blue-50 p-3 rounded border border-blue-100">
-                <p class="text-xs text-blue-600 uppercase">Remaining</p>
-                <p class="text-xl font-bold text-blue-700">${kit.remainingQty}</p>
-            </div>
+        <div class="grid grid-cols-4 gap-2 mb-4 text-center">
+            <div class="bg-slate-50 p-2 rounded border"><p class="text-[10px] uppercase text-slate-500">Input</p><p class="font-bold">${kit.totalQty}</p></div>
+            <div class="bg-green-50 p-2 rounded border border-green-100"><p class="text-[10px] uppercase text-green-600">Pack</p><p class="font-bold text-green-700">${kit.packedQty||0}</p></div>
+            <div class="bg-red-50 p-2 rounded border border-red-100"><p class="text-[10px] uppercase text-red-600">Rej</p><p class="font-bold text-red-700">${kit.rejectionQty||0}</p></div>
+            <div class="bg-blue-50 p-2 rounded border border-blue-100"><p class="text-[10px] uppercase text-blue-600">Rem</p><p class="font-bold text-blue-700">${kit.remainingQty}</p></div>
         </div>
-
-        <div>
-            <h4 class="text-sm font-bold text-slate-700">Production History (A-Z)</h4>
-            ${logsHTML}
-        </div>
-
+        ${logsHTML}
         ${actionsHTML}
     `;
 }
 
-// --- CLOSED KITS SECTION ---
 function renderClosedKits() {
     const list = document.getElementById('closedKitList');
     const searchTerm = document.getElementById('closedKitSearch').value.toLowerCase();
-    
     list.innerHTML = '';
-    const closedKits = kits.filter(k => k.status === 'Closed');
-    const filtered = closedKits.filter(k => 
-        k.id.toLowerCase().includes(searchTerm) || 
-        k.model.toLowerCase().includes(searchTerm)
+    
+    const closedKits = kits.filter(k => k.status === 'Closed').filter(k => 
+        k.id.toLowerCase().includes(searchTerm) || k.model.toLowerCase().includes(searchTerm)
     );
 
-    if(filtered.length === 0) {
-        list.innerHTML = '<p class="text-sm text-slate-500 italic">No closed kits found.</p>';
-        return;
-    }
+    if(closedKits.length === 0) { list.innerHTML = '<p class="text-sm text-slate-500 italic">No closed kits.</p>'; return; }
 
-    filtered.forEach(kit => {
+    closedKits.forEach(kit => {
         const div = document.createElement('div');
-        div.className = 'flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200 hover:bg-slate-100 cursor-pointer transition';
-        div.innerHTML = `
-            <div>
-                <span class="font-bold text-slate-700">${kit.id}</span>
-                <span class="text-xs text-slate-500 ml-2">${kit.model}</span>
-            </div>
-            <div class="text-right">
-               <div class="text-xs font-bold text-green-600">Packed: ${kit.packedQty || 0}</div>
-               <div class="text-[10px] text-red-500 font-bold">CLOSED</div>
-            </div>
-        `;
-        div.onclick = () => showKitDetails(kit.id);
+        div.className = 'flex justify-between p-3 bg-slate-50 border border-slate-200 rounded mb-2 cursor-pointer';
+        div.innerHTML = `<div><div class="font-bold text-sm">${kit.id}</div><div class="text-xs text-slate-500">${kit.model}</div></div><div class="text-xs text-red-500 font-bold">CLOSED</div>`;
+        div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
     });
 }
 
 function exportClosedKits() {
-    const closedKits = kits.filter(k => k.status === 'Closed');
-    if(closedKits.length === 0) {
-        alert("No closed kits data to export.");
-        return;
-    }
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Kit ID,Model,Line,Created Date,Total Input,Packed Qty,Rejection Qty,Semi FG,Remaining Qty\n";
-    closedKits.forEach(k => {
-        const row = [
-            k.id, k.model, k.line, k.createdDate, k.totalQty, k.packedQty || 0, k.rejectionQty || 0, k.semiQty || 0, k.remainingQty
-        ].join(",");
-        csvContent += row + "\n";
-    });
-    const encodedUri = encodeURI(csvContent);
+    const closed = kits.filter(k => k.status === 'Closed');
+    if(closed.length === 0) { alert("No data"); return; }
+    let csv = "Kit ID,Model,Line,Date,Input,Packed,Reject,Semi,Remain\n";
+    closed.forEach(k => { csv += `${k.id},${k.model},${k.line},${k.createdDate},${k.totalQty},${k.packedQty},${k.rejectionQty},${k.semiQty},${k.remainingQty}\n`; });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "PRIME_X_Closed_Kits.csv");
-    document.body.appendChild(link);
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = "Closed_Kits.csv";
     link.click();
-    document.body.removeChild(link);
 }
 
-// --- ACTIONS (Close / Reopen / Transfer) ---
-function closeKit(kitId) {
-    if(!confirm('Are you sure you want to close this kit?')) return;
-    const kit = kits.find(k => k.id === kitId);
+// --- ACTIONS ---
+function closeKit(id) {
+    if(!confirm("Close this kit?")) return;
+    const kit = kits.find(k => k.id === id);
+    if(kit) { kit.status = 'Closed'; saveData(); renderSidebarKits(); renderClosedKits(); showKitDetails(id); }
+}
+
+function reopenKit(id) {
+    if(!confirm("Reopen this kit?")) return;
+    const kit = kits.find(k => k.id === id);
+    if(kit) { kit.status = 'Active'; saveData(); renderSidebarKits(); renderClosedKits(); showKitDetails(id); }
+}
+
+function deleteKit(id) {
+    if(!confirm("Delete permanently?")) return;
+    kits = kits.filter(k => k.id !== id);
+    saveData(); renderSidebarKits(); renderClosedKits();
+    document.getElementById('kitDetailCard').innerHTML = '<div class="text-center py-10 text-slate-400">Deleted</div>';
+}
+
+function openTransferModal(id) {
+    const kit = kits.find(k => k.id === id);
     if(kit) {
-        kit.status = 'Closed';
-        saveData();
-        renderSidebarKits();
-        renderClosedKits();
-        showKitDetails(kitId); // Refresh details to show Reopen button
+        document.getElementById('transferKitId').value = kit.id;
+        document.getElementById('transferFrom').value = kit.line;
+        document.getElementById('transferQty').value = kit.remainingQty;
+        document.getElementById('transferModal').classList.remove('hidden');
     }
-}
-
-// NEW: Reopen Kit Functionality
-function reopenKit(kitId) {
-    if(!confirm('Reopen this kit and make it Active?')) return;
-    const kit = kits.find(k => k.id === kitId);
-    if(kit) {
-        kit.status = 'Active';
-        saveData();
-        renderSidebarKits();
-        renderClosedKits();
-        showKitDetails(kitId); // Refresh details to show Close/Transfer buttons
-    }
-}
-
-function openTransferModal(kitId) {
-    const kit = kits.find(k => k.id === kitId);
-    if(!kit) return;
-    document.getElementById('transferKitId').value = kit.id;
-    document.getElementById('transferFrom').value = kit.line;
-    document.getElementById('transferQty').value = kit.remainingQty;
-    document.getElementById('transferModal').classList.remove('hidden');
 }
 
 function handleTransferKit(e) {
     e.preventDefault();
-    const kitId = document.getElementById('transferKitId').value;
-    const newLine = document.getElementById('transferTo').value;
-    const qty = parseInt(document.getElementById('transferQty').value);
+    const id = document.getElementById('transferKitId').value;
+    const kit = kits.find(k => k.id === id);
+    const toLine = document.getElementById('transferTo').value;
+    const qty = document.getElementById('transferQty').value;
     
-    const kit = kits.find(k => k.id === kitId);
-    
-    if(kit && qty > 0 && qty <= kit.remainingQty) {
-        kit.line = newLine;
-        kit.isTransferred = true; 
-        
-        productionLogs.push({
-            date: new Date().toISOString().split('T')[0],
-            line: newLine,
-            leader: 'System Transfer',
-            kitId: kit.id,
-            model: kit.model,
-            input: 0, output: 0, rejection: 0,
-            type: 'Transfer'
-        });
-
+    if(kit) {
+        kit.line = toLine; kit.isTransferred = true;
+        productionLogs.push({date: new Date().toISOString().split('T')[0], line: toLine, kitId: kit.id, model: kit.model, output: 0, rejection: 0});
         saveData();
         document.getElementById('transferModal').classList.add('hidden');
-        renderSidebarKits();
-        showKitDetails(kitId); 
-        alert('Kit Transferred Successfully');
-    } else {
-        alert('Invalid Quantity');
+        renderSidebarKits(); showKitDetails(id);
     }
 }
 
-// --- LINE LEADER ENTRY ---
 function updateKitSelectDropdown() {
-    const select = document.getElementById('kitSelect');
-    select.innerHTML = '<option value="">Select Active Kit</option>';
-    
-    const active = kits.filter(k => k.status === 'Active');
-    if(active.length === 0) {
-        select.innerHTML = '<option value="">No Active Kits Available</option>';
-    }
-    active.forEach(k => {
-        select.innerHTML += `<option value="${k.id}">${k.id} - ${k.model} (${k.line})</option>`;
-    });
+    const s = document.getElementById('kitSelect'); s.innerHTML = '<option value="">Select Kit</option>';
+    kits.filter(k=>k.status==='Active').forEach(k => s.innerHTML += `<option value="${k.id}">${k.id} (${k.line})</option>`);
 }
 
 function handleShiftEntry(e) {
     e.preventDefault();
-    const kitId = document.getElementById('kitSelect').value;
-    if(!kitId) { alert("Please select a kit"); return; }
-
-    const inputUsed = parseInt(document.getElementById('inputUsed').value);
-    const output = parseInt(document.getElementById('outputQty').value);
-    const rejection = parseInt(document.getElementById('rejectionQty').value);
-    const semi = parseInt(document.getElementById('semiQty').value);
-    const line = document.getElementById('lineSelect').value;
-    const leader = document.getElementById('leaderName').value;
-
-    const kit = kits.find(k => k.id === kitId);
+    const kit = kits.find(k => k.id === document.getElementById('kitSelect').value);
+    if(!kit) return;
     
-    if(kit) {
-        if(inputUsed > kit.remainingQty) {
-            alert('Error: Input used cannot exceed remaining quantity!');
-            return;
-        }
+    const used = parseInt(document.getElementById('inputUsed').value);
+    if(used > kit.remainingQty) { alert("Input exceeds remaining!"); return; }
 
-        kit.remainingQty -= inputUsed;
-        kit.packedQty = (kit.packedQty || 0) + output;
-        kit.rejectionQty = (kit.rejectionQty || 0) + rejection;
-        kit.semiQty = (kit.semiQty || 0) + semi;
+    kit.remainingQty -= used;
+    kit.packedQty = (kit.packedQty||0) + parseInt(document.getElementById('outputQty').value);
+    kit.rejectionQty = (kit.rejectionQty||0) + parseInt(document.getElementById('rejectionQty').value);
+    kit.semiQty = (kit.semiQty||0) + parseInt(document.getElementById('semiQty').value);
 
-        productionLogs.push({
-            date: new Date().toISOString().split('T')[0],
-            line: line,
-            leader: leader,
-            kitId: kit.id,
-            model: kit.model,
-            input: inputUsed,
-            output: output,
-            rejection: rejection,
-            semi: semi,
-            remarks: document.getElementById('remarksInput').value
-        });
-        
-        saveData();
-        
-        document.getElementById('shiftMessage').innerText = "Entry Saved Successfully!";
-        setTimeout(() => document.getElementById('shiftMessage').innerText = "", 3000);
-        e.target.reset();
-        updateKitSelectDropdown();
-    }
+    productionLogs.push({
+        date: new Date().toISOString().split('T')[0],
+        line: document.getElementById('lineSelect').value,
+        leader: document.getElementById('leaderName').value,
+        kitId: kit.id, model: kit.model,
+        input: used,
+        output: parseInt(document.getElementById('outputQty').value),
+        rejection: parseInt(document.getElementById('rejectionQty').value),
+        semi: parseInt(document.getElementById('semiQty').value)
+    });
+
+    saveData();
+    document.getElementById('shiftMessage').innerText = "Saved!";
+    setTimeout(()=>document.getElementById('shiftMessage').innerText="", 2000);
+    e.target.reset(); updateKitSelectDropdown();
 }
 
-// --- MANAGER OVERVIEW ---
 function updateManagerDashboard() {
-    const filterDate = document.getElementById('filterDate').value; 
-    const filterLine = document.getElementById('filterLine').value;
-
-    const filteredLogs = productionLogs.filter(log => {
-        const dateMatch = filterDate ? log.date === filterDate : true;
-        const lineMatch = filterLine === 'All' ? true : log.line === filterLine;
-        return dateMatch && lineMatch;
-    });
-
-    let totalInput = 0, totalPacked = 0, totalRejection = 0, totalSemi = 0;
-
-    filteredLogs.forEach(log => {
-        totalInput += (log.input || 0);
-        totalPacked += (log.output || 0);
-        totalRejection += (log.rejection || 0);
-        totalSemi += (log.semi || 0);
-    });
-
-    let totalActivities = totalPacked + totalRejection;
-    const closedCount = kits.filter(k => k.status === 'Closed' && (filterLine === 'All' || k.line === filterLine)).length;
-    let eff = totalInput > 0 ? ((totalPacked / totalInput) * 100).toFixed(1) : 0;
-
-    document.getElementById('statInput').innerText = totalInput;
-    document.getElementById('statPacked').innerText = totalPacked;
-    document.getElementById('statRejection').innerText = totalRejection;
-    document.getElementById('statSemi').innerText = totalSemi;
-    document.getElementById('statActivities').innerText = totalActivities;
-    document.getElementById('statClosed').innerText = closedCount;
-    document.getElementById('statEfficiency').innerText = eff + '%';
-
-    const tbody = document.getElementById('reportTableBody');
-    tbody.innerHTML = '';
+    const fDate = document.getElementById('filterDate').value;
+    const fLine = document.getElementById('filterLine').value;
     
-    if(filteredLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-400">No logs found.</td></tr>';
-    } else {
-        filteredLogs.forEach(log => {
-            const row = `
-                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                    <td class="px-4 py-3">${log.date}</td>
-                    <td class="px-4 py-3"><span class="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">${log.line}</span></td>
-                    <td class="px-4 py-3">${log.leader}</td>
-                    <td class="px-4 py-3 font-semibold text-slate-700">${log.kitId}</td>
-                    <td class="px-4 py-3 text-slate-500">${log.model}</td>
-                    <td class="px-4 py-3 text-right">${log.input || 0}</td>
-                    <td class="px-4 py-3 text-right text-green-600 font-bold">${log.output || 0}</td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
-        });
-    }
+    const logs = productionLogs.filter(l => (!fDate || l.date === fDate) && (fLine === 'All' || l.line === fLine));
+    
+    let inp=0, pkd=0, rej=0, semi=0;
+    logs.forEach(l => { inp+=l.input||0; pkd+=l.output||0; rej+=l.rejection||0; semi+=l.semi||0; });
+    
+    document.getElementById('statInput').innerText = inp;
+    document.getElementById('statPacked').innerText = pkd;
+    document.getElementById('statRejection').innerText = rej;
+    document.getElementById('statSemi').innerText = semi;
+    document.getElementById('statActivities').innerText = pkd + rej;
+    document.getElementById('statClosed').innerText = kits.filter(k=>k.status==='Closed' && (fLine==='All'||k.line===fLine)).length;
+    document.getElementById('statEfficiency').innerText = inp>0 ? ((pkd/inp)*100).toFixed(1)+'%' : '0%';
+
+    const tbody = document.getElementById('reportTableBody'); tbody.innerHTML = '';
+    if(logs.length===0) tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">No data</td></tr>';
+    logs.forEach(l => {
+        tbody.innerHTML += `<tr><td class="px-4 py-2">${l.date}</td><td class="px-4">${l.line}</td><td class="px-4">${l.leader||'-'}</td><td class="px-4 font-bold">${l.kitId}</td><td class="px-4">${l.model}</td><td class="px-4 text-right">${l.input||0}</td><td class="px-4 text-right font-bold text-green-600">${l.output||0}</td></tr>`;
+    });
 }
 
 function saveData() {

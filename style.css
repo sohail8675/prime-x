@@ -2,78 +2,47 @@
 
 body {
     font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent; /* Fix mobile tap highlight */
 }
 
 /* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
 .hidden { display: none !important; }
 
-/* Role Button Animations */
-.roleBtn:hover {
-    transform: translateY(-3px);
+/* Mobile Touch Optimization */
+button, .roleBtn, .kit-item {
+    touch-action: manipulation;
+    cursor: pointer;
 }
+
+/* Role Button Animations */
+.roleBtn:active { transform: scale(0.98); }
 
 /* KIT CARD STYLING */
 .kit-item {
     background-color: #ffffff;
     border: 1px solid #e2e8f0; 
-    border-left: 4px solid #cbd5e1; /* Default grey left border */
+    border-left: 4px solid #cbd5e1;
     color: #1e293b;
     padding: 12px;
     border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
+    margin-bottom: 0.5rem;
 }
-
-.kit-item:hover {
+.kit-item:hover, .kit-item:active {
     background-color: #f8fafc;
-    border-left-color: #3b82f6; /* Blue on hover */
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-left-color: #3b82f6;
 }
-
-/* Active State for selected kit */
-.kit-item.active {
-    background-color: #eff6ff; /* blue-50 */
-    border-left-color: #2563eb; /* blue-600 */
-    border-color: #bfdbfe;
-}
-
-/* TRANSFERRED INDICATOR */
 .kit-item.is-transferred {
-    border-left: 4px solid #f97316; /* Orange */
+    border-left: 4px solid #f97316;
     background: linear-gradient(135deg, #fff7ed 95%, rgba(249, 115, 22, 0.1) 100%);
 }
-
 .transferred-badge {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    font-size: 0.6rem;
-    background-color: #f97316;
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: bold;
-    text-transform: uppercase;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    position: absolute; top: 5px; right: 5px; font-size: 0.6rem;
+    background-color: #f97316; color: white; padding: 2px 6px; border-radius: 4px;
+    font-weight: bold; text-transform: uppercase;
 }
-
-.stat-card:hover {
-    transform: translateY(-5px);
-    transition: transform 0.2s;
-}
+.stat-card { transition: transform 0.2s; }
+.stat-card:hover { transform: translateY(-5px); }
