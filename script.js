@@ -1,627 +1,507 @@
-// Data Management
-const storageKey = 'kitTrackProData'; // Keeping key same to preserve existing data if any
-let currentRole = null;
-let pendingRole = null; // Temp store for login flow
-let selectedKitId = null;
-let filteredReportsCache = [];
+/* 
+    PRIME X SYSTEM LOGIC
+    Updated Strictly for Sohail
+*/
 
-const loadData = () => {
-  const raw = localStorage.getItem(storageKey);
-  if (!raw) return { kits: [], shiftReports: [], transfers: [] };
-  try { return JSON.parse(raw); } catch (e) { return { kits: [], shiftReports: [], transfers: [] }; }
-};
+// --- STATE MANAGEMENT ---
+let kits = JSON.parse(localStorage.getItem('primeXKits')) || [];
+let productionLogs = JSON.parse(localStorage.getItem('primeXLogs')) || [];
+let currentUserRole = '';
 
-const saveData = (data) => {
-  localStorage.setItem(storageKey, JSON.stringify(data));
-};
-
-const state = loadData();
-
-// Helpers
-const fmtDateTime = (d) => {
-  if (!d) return '-';
-  const date = new Date(d);
-  return date.toLocaleString();
-};
-
-const fmtDate = (d) => {
-  if (!d) return '-';
-  const date = new Date(d);
-  return date.toISOString().slice(0,10);
-};
-
-const openModal = (id) => {
-  document.getElementById(id).classList.add('active');
-};
-
-const closeModal = (id) => {
-  document.getElementById(id).classList.remove('active');
-  if (id === 'passwordModal') {
-    document.getElementById('rolePassword').value = '';
-    pendingRole = null;
-  }
-};
-
-// Render Sidebar
-const renderSidebar = () => {
-  const kitList = document.getElementById('kitList');
-  kitList.innerHTML = '';
-  
-  const activeKits = state.kits.filter(k => k.status === 'OPEN');
-
-  if (!activeKits.length) {
-    kitList.innerHTML = '<div class="text-sm text-slate-500">No active kits.</div>';
-    return;
-  }
-  activeKits.forEach(kit => {
-    const card = document.createElement('div');
-    // Highlight if selected
-    card.className = `p-3 rounded-lg border cursor-pointer transition ${kit.id === selectedKitId ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-200'}`;
-    card.innerHTML = `
-      <div class="flex justify-between text-sm font-semibold text-slate-900">${kit.id}<span class="text-xs px-2 py-1 rounded-full ${kit.status==='OPEN' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-700'}">${kit.status}</span></div>
-      <div class="text-xs text-slate-500">Model: ${kit.model}</div>
-      <div class="text-xs text-slate-500">Remaining: ${kit.remainingQty}</div>
-      <div class="text-xs text-slate-500">Line: ${kit.issuedLine}</div> 
-    `;
-    card.onclick = () => { selectedKitId = kit.id; renderKitDetail(); renderSidebar(); };
-    kitList.appendChild(card);
-  });
-};
-
-// Render Closed Kits
-const renderClosedKits = () => {
-  const container = document.getElementById('closedKitList');
-  if (!container) return;
-  
-  const closedKits = state.kits.filter(k => k.status === 'CLOSED');
-  container.innerHTML = '';
-  
-  if (!closedKits.length) {
-    container.innerHTML = '<p class="text-sm text-slate-500">No closed kits.</p>';
-    return;
-  }
-
-  closedKits.forEach(kit => {
-    const item = document.createElement('div');
-    item.className = 'flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg';
-    item.innerHTML = `
-      <div>
-        <div class="font-semibold text-sm text-slate-900">${kit.id} - ${kit.model}</div>
-        <div class="text-xs text-slate-500">Closed on: ${kit.closeDate ? fmtDate(kit.closeDate) : 'N/A'}</div>
-      </div>
-      <div class="flex gap-2">
-         <button class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700" onclick="viewClosedKitData('${kit.id}')">View</button>
-         <button class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-slate-700" onclick="downloadKitExcel('${kit.id}')">Download</button>
-      </div>
-    `;
-    container.appendChild(item);
-  });
-};
-
-// View Closed Kit Data (On Screen)
-window.viewClosedKitData = (kitId) => {
-  const kit = state.kits.find(k => k.id === kitId);
-  const reports = state.shiftReports.filter(r => r.kitId === kitId);
-  
-  let msg = `Kit: ${kit.id}\nModel: ${kit.model}\nTotal Qty: ${kit.totalQty}\nStatus: CLOSED\n\nHistory:\n`;
-  if(reports.length === 0) msg += "No entries found.";
-  
-  reports.forEach(r => {
-      msg += `${fmtDate(r.date)} | Line: ${r.line} | Used: ${r.quantityUsed} | Packed: ${r.output} | Rej: ${r.rejection}\n`;
-  });
-  
-  alert(msg); // Using alert for simplicity as requested, keeping logic clean.
-};
-
-// Download Excel
-window.downloadKitExcel = (kitId) => {
-  const kit = state.kits.find(k => k.id === kitId);
-  const reports = state.shiftReports.filter(r => r.kitId === kitId);
-  
-  let csvContent = "data:text/csv;charset=utf-8,";
-  // Added Total Quantity to Excel Header
-  csvContent += `Kit ID,${kitId}\nModel,${kit.model}\nTotal Quantity,${kit.totalQty}\nStatus,CLOSED\n\n`;
-  csvContent += "Date,Line,Leader,Input Used,Output (Packed),Rejection,Semi-FG,Remarks,Remaining After\n";
-  
-  reports.forEach(r => {
-    csvContent += `${fmtDate(r.date)},${r.line},${r.leader},${r.quantityUsed},${r.output},${r.rejection},${r.semi || 0},${r.remarks || ''},${r.remainingAfter}\n`;
-  });
-
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `Closed_Kit_${kitId}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
-// Render Kit Detail
-const renderKitDetail = () => {
-  const container = document.getElementById('kitDetailContent');
-  if (!selectedKitId) {
-    container.innerHTML = '<div class="text-slate-500">Select a kit from the sidebar to view details.</div>';
-    return;
-  }
-  const kit = state.kits.find(k => k.id === selectedKitId);
-  if (!kit) {
-    container.innerHTML = '<div class="text-slate-500">Kit not found.</div>';
-    return;
-  }
-  
-  const history = state.shiftReports.filter(r => r.kitId === kit.id);
-  const totalUsed = kit.totalQty - kit.remainingQty;
-  const totalRejection = history.reduce((sum, r) => sum + (Number(r.rejection) || 0), 0);
-
-  // Manager can VIEW, Data Incharge can TRANSFER/CLOSE
-  const canTransfer = currentRole === 'Data Incharge' && kit.status === 'OPEN';
-  const canClose = currentRole === 'Data Incharge' && kit.status === 'OPEN' && kit.remainingQty === 0;
-  
-  container.innerHTML = `
-    <div class="flex justify-between items-start gap-4">
-      <div>
-        <div class="text-lg font-semibold text-slate-900">Kit ${kit.id}</div>
-        <p class="text-sm text-slate-500">Model: ${kit.model}</p>
-        <p class="text-sm text-slate-500">Issued Line: ${kit.issuedLine}</p>
-        <p class="text-sm text-slate-500">Issue Date: ${fmtDateTime(kit.issueDate)}</p>
-      </div>
-      <div class="flex gap-2">
-        ${canTransfer ? '<button id="transferBtn" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">Transfer Remaining Kit</button>' : ''}
-        ${canClose ? '<button id="closeKitBtn" class="px-3 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-900">Close Kit</button>' : ''}
-      </div>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-      <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p class="text-xs text-slate-500">Total Quantity</p>
-        <p class="text-lg font-semibold text-slate-900">${kit.totalQty}</p>
-      </div>
-      <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p class="text-xs text-slate-500">Total Used</p>
-        <p class="text-lg font-semibold text-slate-900">${totalUsed}</p>
-      </div>
-      <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p class="text-xs text-slate-500">Packed Quantity</p>
-        <p class="text-lg font-semibold text-emerald-700">${kit.packedQty || 0}</p>
-      </div>
-       <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p class="text-xs text-slate-500">Total Rejection</p>
-        <p class="text-lg font-semibold text-red-600">${totalRejection}</p>
-      </div>
-      <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p class="text-xs text-slate-500">Remaining Quantity</p>
-        <p class="text-lg font-semibold text-slate-900">${kit.remainingQty}</p>
-      </div>
-      <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-        <p class="text-xs text-slate-500">Pending Semi-FG</p>
-        <p class="text-lg font-semibold text-orange-600">${kit.semiQty || 0}</p>
-      </div>
-    </div>
-
-    <div class="mt-6">
-      <h4 class="text-sm font-semibold text-slate-900 mb-2">Daily History</h4>
-      <div class="overflow-x-auto border border-slate-200 rounded-lg">
-        <table class="min-w-full text-xs text-left">
-          <thead class="bg-slate-50 font-medium text-slate-700">
-            <tr>
-              <th class="px-3 py-2 border-b">Date</th>
-              <th class="px-3 py-2 border-b">Line</th>
-              <th class="px-3 py-2 border-b">Input</th>
-              <th class="px-3 py-2 border-b">Packed</th>
-              <th class="px-3 py-2 border-b">Rej</th>
-              <th class="px-3 py-2 border-b">Semi</th>
-              <th class="px-3 py-2 border-b">Remarks</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            ${history.length === 0 ? '<tr><td colspan="7" class="px-3 py-2 text-center text-slate-500">No entries yet.</td></tr>' : 
-              history.map(h => `
-                <tr>
-                  <td class="px-3 py-2 text-slate-900">${fmtDate(h.date)}</td>
-                  <td class="px-3 py-2 text-slate-500">${h.line}</td>
-                  <td class="px-3 py-2 text-slate-900">${h.quantityUsed}</td>
-                  <td class="px-3 py-2 text-emerald-700 font-medium">${h.output}</td>
-                  <td class="px-3 py-2 text-red-600">${h.rejection}</td>
-                  <td class="px-3 py-2 text-orange-600">${h.semi || 0}</td>
-                  <td class="px-3 py-2 text-slate-500">${h.remarks || '-'}</td>
-                </tr>
-              `).join('')
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-  
-  if (canTransfer) {
-    document.getElementById('transferBtn').onclick = () => openTransferModal(kit);
-  }
-  if (canClose) {
-    document.getElementById('closeKitBtn').onclick = () => closeKit(kit.id);
-  }
-};
-
-const openTransferModal = (kit) => {
-  document.getElementById('transferKitId').value = kit.id;
-  document.getElementById('transferModel').value = kit.model;
-  document.getElementById('transferFrom').value = kit.issuedLine;
-  document.getElementById('transferTo').value = '';
-  document.getElementById('transferQty').value = kit.remainingQty;
-  openModal('transferModal');
-};
-
-const closeKit = (kitId) => {
-  const kit = state.kits.find(k => k.id === kitId);
-  if (!kit) return;
-  if (kit.remainingQty !== 0) return;
-  
-  kit.status = 'CLOSED';
-  kit.closeDate = new Date().toISOString();
-  
-  saveData(state);
-  renderSidebar();
-  renderClosedKits();
-  renderKitDetail();
-  renderLineLeaderKitOptions();
-  renderManagerStats();
-};
-
-// Line Leader Dropdown
-const renderLineLeaderKitOptions = () => {
-  const select = document.getElementById('kitSelect');
-  if (!select) return;
-  select.innerHTML = '';
-  const openKits = state.kits.filter(k => k.status === 'OPEN' && k.remainingQty > 0);
-  if (!openKits.length) {
-    select.innerHTML = '<option value="">No open kits available</option>';
-    return;
-  }
-  select.innerHTML = '<option value="">Select Kit</option>' + openKits.map(k => `<option value="${k.id}">${k.id} - ${k.model} (Remaining: ${k.remainingQty})</option>`).join('');
-};
-
-// Manager Stats
-const renderManagerStats = () => {
-  // Lifetime stats
-  const totalProduction = state.shiftReports.reduce((sum, r) => sum + Number(r.quantityUsed || 0), 0);
-  const activeKits = state.kits.filter(k => k.status === 'OPEN').length;
-  const closedKits = state.kits.filter(k => k.status === 'CLOSED').length;
-  
-  document.getElementById('totalProduction').textContent = totalProduction;
-  document.getElementById('activeKits').textContent = activeKits;
-  document.getElementById('closedKits').textContent = closedKits;
-
-  // Today's Stats Calculation
-  const todayStr = new Date().toISOString().slice(0,10);
-  const todayReports = state.shiftReports.filter(r => fmtDate(r.date) === todayStr);
-
-  const tInput = todayReports.reduce((sum, r) => sum + (Number(r.quantityUsed)||0), 0);
-  const tPacked = todayReports.reduce((sum, r) => sum + (Number(r.output)||0), 0);
-  const tRejection = todayReports.reduce((sum, r) => sum + (Number(r.rejection)||0), 0);
-  const tSemi = todayReports.reduce((sum, r) => sum + (Number(r.semi)||0), 0);
-
-  document.getElementById('todayInput').textContent = tInput;
-  document.getElementById('todayPacked').textContent = tPacked;
-  document.getElementById('todayRejection').textContent = tRejection;
-  document.getElementById('todaySemi').textContent = tSemi;
-};
-
-// Reports Table
-const renderReportsTable = (rows = state.shiftReports) => {
-  const tbody = document.getElementById('reportTableBody');
-  tbody.innerHTML = '';
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="px-3 py-3 text-center text-slate-500">No records found.</td></tr>';
-    return;
-  }
-  
-  // Sort by date desc
-  const sorted = [...rows].sort((a,b) => new Date(b.date) - new Date(a.date));
-
-  sorted.forEach((r, index) => {
-    const tr = document.createElement('tr');
-    tr.className = 'border-b border-slate-100';
+// --- DOM LOAD ---
+document.addEventListener('DOMContentLoaded', () => {
     
-    // Action Buttons for Data Incharge
-    let actions = '-';
-    if (currentRole === 'Data Incharge') {
-      // Finding actual index in state array to delete/edit correctly
-      const actualIndex = state.shiftReports.indexOf(r);
-      actions = `
-        <button onclick="deleteReport(${actualIndex})" class="text-xs text-red-600 hover:underline">Delete</button>
-      `;
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        location.reload();
+    });
+
+    // --- BUTTON EVENT LISTENERS ---
+    // Add Kit (Only for Data Incharge)
+    const addKitBtn = document.getElementById('addKitBtn');
+    if(addKitBtn) addKitBtn.addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
+    
+    document.getElementById('closeAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
+
+    // Transfer Kit
+    document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
+
+    // Line Leader Shift Form
+    document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
+
+    // Manager Filters
+    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
+
+    // Search Inputs
+    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
+    document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
+});
+
+// --- LOGIN ---
+function login(role) {
+    currentUserRole = role;
+    
+    // Hide Login, Show Main
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('header').classList.remove('hidden');
+    document.getElementById('mainLayout').classList.remove('hidden');
+    
+    document.getElementById('currentRoleDisplay').innerText = role;
+    setupViewByRole();
+}
+
+function setupViewByRole() {
+    const role = currentUserRole;
+
+    // Reset Views
+    document.getElementById('kitManagementView').classList.add('hidden');
+    document.getElementById('lineLeaderView').classList.add('hidden');
+    document.getElementById('managerView').classList.add('hidden');
+    
+    // Hide Add Kit Button by default, show only if Data Incharge
+    document.getElementById('addKitBtn').classList.add('hidden');
+
+    if (role === 'Data Incharge') {
+        document.getElementById('kitManagementView').classList.remove('hidden');
+        document.getElementById('addKitBtn').classList.remove('hidden'); // Show Permission
+        renderSidebarKits();
+        renderClosedKits();
+    } else if (role === 'Line Leader') {
+        document.getElementById('lineLeaderView').classList.remove('hidden');
+        updateKitSelectDropdown(); 
+    } else if (role === 'Manager') {
+        document.getElementById('managerView').classList.remove('hidden');
+        document.getElementById('kitManagementView').classList.remove('hidden'); 
+        renderSidebarKits();
+        renderClosedKits();
+        document.getElementById('filterDate').valueAsDate = new Date();
+        updateManagerDashboard();
+    }
+}
+
+// --- KIT MANAGEMENT ---
+function handleAddKit(e) {
+    e.preventDefault();
+    if(currentUserRole !== 'Data Incharge') return; // Strict Check
+
+    const newKit = {
+        id: document.getElementById('kitIdInput').value.toUpperCase(),
+        model: document.getElementById('modelInput').value.toUpperCase(),
+        totalQty: parseInt(document.getElementById('totalQtyInput').value),
+        line: document.getElementById('issuedLineInput').value,
+        remainingQty: parseInt(document.getElementById('totalQtyInput').value),
+        
+        packedQty: 0,
+        rejectionQty: 0,
+        semiQty: 0,
+        
+        status: 'Active', 
+        isTransferred: false,
+        createdDate: new Date().toISOString().split('T')[0],
+        logs: []
+    };
+
+    kits.push(newKit);
+    saveData();
+    document.getElementById('addKitModal').classList.add('hidden');
+    e.target.reset();
+    
+    renderSidebarKits();
+    if(currentUserRole === 'Manager') updateManagerDashboard();
+}
+
+// --- RENDER SIDEBAR ---
+function renderSidebarKits() {
+    const list = document.getElementById('kitList');
+    const searchTerm = document.getElementById('kitSearch').value.toLowerCase();
+    
+    list.innerHTML = '';
+    const activeKits = kits.filter(k => k.status === 'Active');
+    const filteredKits = activeKits.filter(k => 
+        k.id.toLowerCase().includes(searchTerm) || 
+        k.model.toLowerCase().includes(searchTerm) ||
+        k.line.toLowerCase().includes(searchTerm)
+    );
+
+    if (filteredKits.length === 0) {
+        list.innerHTML = '<div class="text-slate-500 text-sm text-center p-4">No active kits.</div>';
+        return;
     }
 
-    tr.innerHTML = `
-      <td class="px-3 py-2">${fmtDate(r.date)}</td>
-      <td class="px-3 py-2">${r.line}</td>
-      <td class="px-3 py-2">${r.leader}</td>
-      <td class="px-3 py-2">${r.kitId}</td>
-      <td class="px-3 py-2">${r.model}</td>
-      <td class="px-3 py-2">${r.quantityUsed}</td>
-      <td class="px-3 py-2">${r.remainingAfter}</td>
-      <td class="px-3 py-2">${actions}</td>
+    filteredKits.forEach(kit => {
+        const div = document.createElement('div');
+        const transferClass = kit.isTransferred ? 'is-transferred' : '';
+        const badgeHTML = kit.isTransferred ? '<div class="transferred-badge">TRANSFERRED</div>' : '';
+
+        div.className = `kit-item ${transferClass}`;
+        div.innerHTML = `
+            ${badgeHTML}
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="font-bold text-sm text-slate-800">${kit.id}</div>
+                    <div class="text-xs text-slate-500">${kit.model}</div>
+                </div>
+                <div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div>
+            </div>
+            <div class="mt-2 flex justify-between text-xs text-slate-500">
+                <span>Total: ${kit.totalQty}</span>
+                <span>Rem: <b class="text-slate-800">${kit.remainingQty}</b></span>
+            </div>
+        `;
+        // Fix for "Clicking bug": This is cleaner
+        div.onclick = () => showKitDetails(kit.id);
+        list.appendChild(div);
+    });
+}
+
+// --- FULL A-Z DETAILS ---
+function showKitDetails(kitId) {
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+
+    // Fix: We target the Card directly to ensure DOM consistency
+    const card = document.getElementById('kitDetailCard');
+    
+    const historyLogs = productionLogs.filter(log => log.kitId === kit.id);
+    
+    let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Line</th><th class="p-2">Used</th><th class="p-2">Output</th><th class="p-2">Rej</th></tr></thead><tbody>';
+    
+    if(historyLogs.length > 0) {
+        historyLogs.reverse().forEach(log => {
+            logsHTML += `
+                <tr class="border-t border-slate-100">
+                    <td class="p-2 text-slate-600">${log.date}</td>
+                    <td class="p-2 text-slate-600">${log.line}</td>
+                    <td class="p-2 text-slate-600">${log.input || '-'}</td>
+                    <td class="p-2 text-green-600 font-bold">${log.output || '-'}</td>
+                    <td class="p-2 text-red-600">${log.rejection || '-'}</td>
+                </tr>`;
+        });
+    } else {
+        logsHTML += '<tr><td colspan="5" class="p-2 text-center text-slate-400">No production logs yet.</td></tr>';
+    }
+    logsHTML += '</tbody></table></div>';
+
+    // PERMISSIONS LOGIC
+    let actionsHTML = '';
+    
+    if(currentUserRole === 'Data Incharge') {
+        if(kit.status === 'Active') {
+            actionsHTML = `
+                <div class="mt-6 flex gap-3 border-t border-slate-100 pt-4">
+                    <button onclick="openTransferModal('${kit.id}')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded text-sm font-semibold transition shadow-sm">
+                        Transfer Kit
+                    </button>
+                    <button onclick="closeKit('${kit.id}')" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm font-semibold transition shadow-sm">
+                        Close Kit
+                    </button>
+                </div>
+            `;
+        } else if (kit.status === 'Closed') {
+            // Reopen Button for Closed Kits
+            actionsHTML = `
+                <div class="mt-6 border-t border-slate-100 pt-4">
+                    <button onclick="reopenKit('${kit.id}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-semibold transition shadow-sm">
+                        <i class="fas fa-undo"></i> Reopen Kit (Make Active)
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    const transferBanner = kit.isTransferred ? 
+        `<div class="bg-orange-50 border border-orange-200 text-orange-800 p-2 rounded mb-4 text-sm text-center font-bold">
+            <i class="fas fa-info-circle"></i> This Kit has been Transferred
+         </div>` : '';
+
+    // RENDER
+    card.innerHTML = `
+        ${transferBanner}
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h3 class="text-3xl font-bold text-slate-900">${kit.id}</h3>
+                <p class="text-slate-500 text-lg">${kit.model}</p>
+            </div>
+            <div class="text-right">
+                <span class="bg-slate-800 text-white px-3 py-1 rounded text-sm font-bold">${kit.line}</span>
+                <p class="text-xs text-slate-400 mt-2">Status: <span class="${kit.status==='Active'?'text-blue-600 font-bold':'text-red-600 font-bold'}">${kit.status}</span></p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-4 gap-4 mb-6 text-center">
+            <div class="bg-slate-50 p-3 rounded border border-slate-200">
+                <p class="text-xs text-slate-500 uppercase">Total Input</p>
+                <p class="text-xl font-bold text-slate-800">${kit.totalQty}</p>
+            </div>
+            <div class="bg-green-50 p-3 rounded border border-green-100">
+                <p class="text-xs text-green-600 uppercase">Packed</p>
+                <p class="text-xl font-bold text-green-700">${kit.packedQty || 0}</p>
+            </div>
+            <div class="bg-red-50 p-3 rounded border border-red-100">
+                <p class="text-xs text-red-600 uppercase">Rejection</p>
+                <p class="text-xl font-bold text-red-700">${kit.rejectionQty || 0}</p>
+            </div>
+            <div class="bg-blue-50 p-3 rounded border border-blue-100">
+                <p class="text-xs text-blue-600 uppercase">Remaining</p>
+                <p class="text-xl font-bold text-blue-700">${kit.remainingQty}</p>
+            </div>
+        </div>
+
+        <div>
+            <h4 class="text-sm font-bold text-slate-700">Production History (A-Z)</h4>
+            ${logsHTML}
+        </div>
+
+        ${actionsHTML}
     `;
-    tbody.appendChild(tr);
-  });
-  filteredReportsCache = sorted;
-};
+}
 
-// Delete Report (Data Incharge Only)
-window.deleteReport = (index) => {
-  if (!confirm('Are you sure you want to delete this record? This will adjust the kit quantity back.')) return;
-  
-  const report = state.shiftReports[index];
-  const kit = state.kits.find(k => k.id === report.kitId);
-  
-  if (kit && kit.status === 'OPEN') {
-      // Revert calculations
-      const deducted = Number(report.output) + Number(report.rejection);
-      kit.remainingQty += deducted;
-      kit.packedQty = (kit.packedQty || 0) - Number(report.output);
-      kit.semiQty = (kit.semiQty || 0) - Number(report.semi || 0);
-  } else {
-      alert('Warning: Associated kit is Closed or missing. Quantity cannot be automatically restored.');
-  }
-  
-  state.shiftReports.splice(index, 1);
-  saveData(state);
-  renderReportsTable();
-  renderSidebar();
-  renderKitDetail();
-  renderManagerStats();
-};
+// --- CLOSED KITS SECTION ---
+function renderClosedKits() {
+    const list = document.getElementById('closedKitList');
+    const searchTerm = document.getElementById('closedKitSearch').value.toLowerCase();
+    
+    list.innerHTML = '';
+    const closedKits = kits.filter(k => k.status === 'Closed');
+    const filtered = closedKits.filter(k => 
+        k.id.toLowerCase().includes(searchTerm) || 
+        k.model.toLowerCase().includes(searchTerm)
+    );
 
-// Login Handling
-const showMain = () => {
-  document.getElementById('loginSection').style.display = 'none';
-  document.getElementById('header').style.display = 'block';
-  document.getElementById('mainLayout').classList.remove('hidden');
-  document.getElementById('currentRoleDisplay').textContent = currentRole;
-  
-  // View Visibility Logic
-  // Data Incharge: Sees Kit Management (w/ Add), Closed Kits
-  // Manager: Sees Kit Management (No Add), Closed Kits, Dashboard
-  // Line Leader: Sees Shift Entry
-  
-  const kitMgmt = document.getElementById('kitManagementView');
-  const addBtn = document.getElementById('addKitBtn');
-  const lineView = document.getElementById('lineLeaderView');
-  const mgrView = document.getElementById('managerView');
-
-  kitMgmt.classList.add('hidden');
-  lineView.classList.add('hidden');
-  mgrView.classList.add('hidden');
-  addBtn.classList.add('hidden');
-
-  if (currentRole === 'Line Leader') {
-      lineView.classList.remove('hidden');
-  } else if (currentRole === 'Data Incharge') {
-      kitMgmt.classList.remove('hidden');
-      addBtn.classList.remove('hidden');
-      // Data Incharge also sees reports table inside manager view? Or should we duplicate?
-      // Re-using manager view for reports table specifically is easiest or create shared.
-      // Current req says "Data Incharge must have full permissions...". 
-      // I will show the Manager View (Reports part) to Data Incharge too so they can edit.
-      mgrView.classList.remove('hidden'); 
-  } else if (currentRole === 'Manager') {
-      kitMgmt.classList.remove('hidden');
-      mgrView.classList.remove('hidden');
-  }
-
-  renderSidebar();
-  renderClosedKits();
-  renderKitDetail();
-  renderLineLeaderKitOptions();
-  renderManagerStats();
-  renderReportsTable();
-};
-
-// Password Logic
-document.querySelectorAll('.roleBtn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const role = btn.dataset.role;
-    if (role === 'Line Leader') {
-      currentRole = role;
-      showMain();
-    } else {
-      pendingRole = role;
-      openModal('passwordModal');
+    if(filtered.length === 0) {
+        list.innerHTML = '<p class="text-sm text-slate-500 italic">No closed kits found.</p>';
+        return;
     }
-  });
-});
 
-document.getElementById('confirmLoginBtn').addEventListener('click', () => {
-    const pwd = document.getElementById('rolePassword').value;
-    if (pendingRole === 'Data Incharge' && pwd === '1089') {
-        currentRole = pendingRole;
-        closeModal('passwordModal');
-        showMain();
-    } else if (pendingRole === 'Manager' && pwd === '1088') {
-        currentRole = pendingRole;
-        closeModal('passwordModal');
-        showMain();
-    } else {
-        alert('Incorrect Password');
+    filtered.forEach(kit => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200 hover:bg-slate-100 cursor-pointer transition';
+        div.innerHTML = `
+            <div>
+                <span class="font-bold text-slate-700">${kit.id}</span>
+                <span class="text-xs text-slate-500 ml-2">${kit.model}</span>
+            </div>
+            <div class="text-right">
+               <div class="text-xs font-bold text-green-600">Packed: ${kit.packedQty || 0}</div>
+               <div class="text-[10px] text-red-500 font-bold">CLOSED</div>
+            </div>
+        `;
+        div.onclick = () => showKitDetails(kit.id);
+        list.appendChild(div);
+    });
+}
+
+function exportClosedKits() {
+    const closedKits = kits.filter(k => k.status === 'Closed');
+    if(closedKits.length === 0) {
+        alert("No closed kits data to export.");
+        return;
     }
-});
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Kit ID,Model,Line,Created Date,Total Input,Packed Qty,Rejection Qty,Semi FG,Remaining Qty\n";
+    closedKits.forEach(k => {
+        const row = [
+            k.id, k.model, k.line, k.createdDate, k.totalQty, k.packedQty || 0, k.rejectionQty || 0, k.semiQty || 0, k.remainingQty
+        ].join(",");
+        csvContent += row + "\n";
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "PRIME_X_Closed_Kits.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  currentRole = null;
-  selectedKitId = null;
-  document.getElementById('loginSection').style.display = 'flex';
-  document.getElementById('header').style.display = 'none';
-  document.getElementById('mainLayout').classList.add('hidden');
-});
+// --- ACTIONS (Close / Reopen / Transfer) ---
+function closeKit(kitId) {
+    if(!confirm('Are you sure you want to close this kit?')) return;
+    const kit = kits.find(k => k.id === kitId);
+    if(kit) {
+        kit.status = 'Closed';
+        saveData();
+        renderSidebarKits();
+        renderClosedKits();
+        showKitDetails(kitId); // Refresh details to show Reopen button
+    }
+}
 
-// Add Kit
-document.getElementById('addKitBtn').addEventListener('click', () => openModal('addKitModal'));
-document.getElementById('addKitForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const id = document.getElementById('kitIdInput').value.trim();
-  const model = document.getElementById('modelInput').value.trim();
-  const totalQty = Number(document.getElementById('totalQtyInput').value);
-  const issuedLine = document.getElementById('issuedLineInput').value;
-  if (!id || !model || !totalQty || !issuedLine) return;
-  if (state.kits.find(k => k.id === id)) {
-    alert('Kit ID already exists.');
-    return;
-  }
-  const kit = {
-    id,
-    model,
-    totalQty,
-    remainingQty: totalQty,
-    semiQty: 0,
-    packedQty: 0,
-    issuedLine,
-    issueDate: new Date().toISOString(),
-    status: 'OPEN',
-    activeLines: [issuedLine],
-    transfers: []
-  };
-  state.kits.push(kit);
-  saveData(state);
-  closeModal('addKitModal');
-  document.getElementById('addKitForm').reset();
-  selectedKitId = kit.id;
-  renderSidebar();
-  renderKitDetail();
-  renderLineLeaderKitOptions();
-  renderManagerStats();
-});
+// NEW: Reopen Kit Functionality
+function reopenKit(kitId) {
+    if(!confirm('Reopen this kit and make it Active?')) return;
+    const kit = kits.find(k => k.id === kitId);
+    if(kit) {
+        kit.status = 'Active';
+        saveData();
+        renderSidebarKits();
+        renderClosedKits();
+        showKitDetails(kitId); // Refresh details to show Close/Transfer buttons
+    }
+}
 
-// Transfer
-document.getElementById('transferForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const kitId = document.getElementById('transferKitId').value;
-  const toLine = document.getElementById('transferTo').value;
-  const qty = Number(document.getElementById('transferQty').value);
-  const kit = state.kits.find(k => k.id === kitId);
-  if (!kit || kit.status !== 'OPEN') return;
-  if (!toLine) return;
-  if (qty < 0 || qty > kit.remainingQty) {
-    alert('Transfer quantity must be between 0 and remaining quantity.');
-    return;
-  }
-  
-  // LOGIC CHANGE: Visibly affect system
-  const fromLine = kit.issuedLine;
-  kit.issuedLine = toLine; // Update the main issued line
-  
-  // Track active lines
-  if (!kit.activeLines.includes(toLine)) kit.activeLines.push(toLine);
-  
-  // Record Transfer
-  state.transfers.push({ kitId, model: kit.model, fromLine, toLine, qty, date: new Date().toISOString() });
-  
-  saveData(state);
-  closeModal('transferModal');
-  renderSidebar(); // Sidebar will now show new Line
-  renderKitDetail(); // Detail view updates
-  alert(`Successfully transferred Kit ${kitId} to ${toLine}`);
-});
+function openTransferModal(kitId) {
+    const kit = kits.find(k => k.id === kitId);
+    if(!kit) return;
+    document.getElementById('transferKitId').value = kit.id;
+    document.getElementById('transferFrom').value = kit.line;
+    document.getElementById('transferQty').value = kit.remainingQty;
+    document.getElementById('transferModal').classList.remove('hidden');
+}
 
-// Shift Submission
-document.getElementById('shiftForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const line = document.getElementById('lineSelect').value;
-  const leader = document.getElementById('leaderName').value.trim();
-  const kitId = document.getElementById('kitSelect').value;
-  const inputUsed = Number(document.getElementById('inputUsed').value);
-  const output = Number(document.getElementById('outputQty').value);
-  const rejection = Number(document.getElementById('rejectionQty').value);
-  const semi = Number(document.getElementById('semiQty').value);
-  const remarks = document.getElementById('remarksInput').value.trim();
-  
-  const message = document.getElementById('shiftMessage');
-  message.textContent = '';
-  message.className = 'text-sm font-medium';
-  if (!line || !leader || !kitId) return;
-  
-  if (output + rejection + semi !== inputUsed) {
-    message.textContent = 'Validation failed: Output + Rejection + Semi-FG must equal Input Used.';
-    message.classList.add('text-red-600');
-    return;
-  }
-  
-  const kit = state.kits.find(k => k.id === kitId && k.status === 'OPEN');
-  if (!kit) {
-    message.textContent = 'Selected kit unavailable.';
-    message.classList.add('text-red-600');
-    return;
-  }
-  if (inputUsed > kit.remainingQty) {
-    message.textContent = 'Input Used exceeds remaining quantity.';
-    message.classList.add('text-red-600');
-    return;
-  }
-  
-  const deductedQty = output + rejection;
-  kit.remainingQty -= deductedQty;
-  kit.semiQty = (kit.semiQty || 0) + semi;
-  kit.packedQty = (kit.packedQty || 0) + output;
+function handleTransferKit(e) {
+    e.preventDefault();
+    const kitId = document.getElementById('transferKitId').value;
+    const newLine = document.getElementById('transferTo').value;
+    const qty = parseInt(document.getElementById('transferQty').value);
+    
+    const kit = kits.find(k => k.id === kitId);
+    
+    if(kit && qty > 0 && qty <= kit.remainingQty) {
+        kit.line = newLine;
+        kit.isTransferred = true; 
+        
+        productionLogs.push({
+            date: new Date().toISOString().split('T')[0],
+            line: newLine,
+            leader: 'System Transfer',
+            kitId: kit.id,
+            model: kit.model,
+            input: 0, output: 0, rejection: 0,
+            type: 'Transfer'
+        });
 
-  if (!kit.activeLines.includes(line)) kit.activeLines.push(line);
-  
-  const report = {
-    date: new Date().toISOString(),
-    line,
-    leader,
-    kitId,
-    model: kit.model,
-    quantityUsed: inputUsed,
-    output,
-    rejection,
-    semi,
-    remarks,
-    remainingAfter: kit.remainingQty
-  };
-  state.shiftReports.push(report);
-  saveData(state);
-  
-  message.textContent = 'Shift entry saved successfully.';
-  message.classList.add('text-emerald-600');
-  document.getElementById('shiftForm').reset();
-  
-  renderSidebar();
-  renderKitDetail();
-  renderLineLeaderKitOptions();
-  renderManagerStats();
-  renderReportsTable();
-});
+        saveData();
+        document.getElementById('transferModal').classList.add('hidden');
+        renderSidebarKits();
+        showKitDetails(kitId); 
+        alert('Kit Transferred Successfully');
+    } else {
+        alert('Invalid Quantity');
+    }
+}
 
-// Filters
-document.getElementById('applyFilter').addEventListener('click', () => {
-  const dateVal = document.getElementById('filterDate').value;
-  const lineVal = document.getElementById('filterLine').value;
-  let rows = state.shiftReports;
-  if (dateVal) rows = rows.filter(r => fmtDate(r.date) === dateVal);
-  if (lineVal) rows = rows.filter(r => r.line === lineVal);
-  renderReportsTable(rows);
-});
+// --- LINE LEADER ENTRY ---
+function updateKitSelectDropdown() {
+    const select = document.getElementById('kitSelect');
+    select.innerHTML = '<option value="">Select Active Kit</option>';
+    
+    const active = kits.filter(k => k.status === 'Active');
+    if(active.length === 0) {
+        select.innerHTML = '<option value="">No Active Kits Available</option>';
+    }
+    active.forEach(k => {
+        select.innerHTML += `<option value="${k.id}">${k.id} - ${k.model} (${k.line})</option>`;
+    });
+}
 
-// Export CSV
-document.getElementById('exportCsv').addEventListener('click', () => {
-  const rows = filteredReportsCache.length ? filteredReportsCache : state.shiftReports;
-  if (!rows.length) return;
-  const header = ['Date','Line','Line Leader Name','Kit ID','Model','Quantity Used','Remaining Quantity', 'Semi-FG', 'Remarks'];
-  const csvRows = [header.join(',')];
-  rows.forEach(r => {
-    csvRows.push([fmtDate(r.date), r.line, r.leader, r.kitId, r.model, r.quantityUsed, r.remainingAfter, r.semi || 0, r.remarks || ''].join(','));
-  });
-  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'kittrack_pro.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
+function handleShiftEntry(e) {
+    e.preventDefault();
+    const kitId = document.getElementById('kitSelect').value;
+    if(!kitId) { alert("Please select a kit"); return; }
 
-// Initial render
-renderSidebar();
-renderClosedKits();
-renderLineLeaderKitOptions();
-renderManagerStats();
-renderReportsTable();
+    const inputUsed = parseInt(document.getElementById('inputUsed').value);
+    const output = parseInt(document.getElementById('outputQty').value);
+    const rejection = parseInt(document.getElementById('rejectionQty').value);
+    const semi = parseInt(document.getElementById('semiQty').value);
+    const line = document.getElementById('lineSelect').value;
+    const leader = document.getElementById('leaderName').value;
+
+    const kit = kits.find(k => k.id === kitId);
+    
+    if(kit) {
+        if(inputUsed > kit.remainingQty) {
+            alert('Error: Input used cannot exceed remaining quantity!');
+            return;
+        }
+
+        kit.remainingQty -= inputUsed;
+        kit.packedQty = (kit.packedQty || 0) + output;
+        kit.rejectionQty = (kit.rejectionQty || 0) + rejection;
+        kit.semiQty = (kit.semiQty || 0) + semi;
+
+        productionLogs.push({
+            date: new Date().toISOString().split('T')[0],
+            line: line,
+            leader: leader,
+            kitId: kit.id,
+            model: kit.model,
+            input: inputUsed,
+            output: output,
+            rejection: rejection,
+            semi: semi,
+            remarks: document.getElementById('remarksInput').value
+        });
+        
+        saveData();
+        
+        document.getElementById('shiftMessage').innerText = "Entry Saved Successfully!";
+        setTimeout(() => document.getElementById('shiftMessage').innerText = "", 3000);
+        e.target.reset();
+        updateKitSelectDropdown();
+    }
+}
+
+// --- MANAGER OVERVIEW ---
+function updateManagerDashboard() {
+    const filterDate = document.getElementById('filterDate').value; 
+    const filterLine = document.getElementById('filterLine').value;
+
+    const filteredLogs = productionLogs.filter(log => {
+        const dateMatch = filterDate ? log.date === filterDate : true;
+        const lineMatch = filterLine === 'All' ? true : log.line === filterLine;
+        return dateMatch && lineMatch;
+    });
+
+    let totalInput = 0, totalPacked = 0, totalRejection = 0, totalSemi = 0;
+
+    filteredLogs.forEach(log => {
+        totalInput += (log.input || 0);
+        totalPacked += (log.output || 0);
+        totalRejection += (log.rejection || 0);
+        totalSemi += (log.semi || 0);
+    });
+
+    let totalActivities = totalPacked + totalRejection;
+    const closedCount = kits.filter(k => k.status === 'Closed' && (filterLine === 'All' || k.line === filterLine)).length;
+    let eff = totalInput > 0 ? ((totalPacked / totalInput) * 100).toFixed(1) : 0;
+
+    document.getElementById('statInput').innerText = totalInput;
+    document.getElementById('statPacked').innerText = totalPacked;
+    document.getElementById('statRejection').innerText = totalRejection;
+    document.getElementById('statSemi').innerText = totalSemi;
+    document.getElementById('statActivities').innerText = totalActivities;
+    document.getElementById('statClosed').innerText = closedCount;
+    document.getElementById('statEfficiency').innerText = eff + '%';
+
+    const tbody = document.getElementById('reportTableBody');
+    tbody.innerHTML = '';
+    
+    if(filteredLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-400">No logs found.</td></tr>';
+    } else {
+        filteredLogs.forEach(log => {
+            const row = `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                    <td class="px-4 py-3">${log.date}</td>
+                    <td class="px-4 py-3"><span class="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">${log.line}</span></td>
+                    <td class="px-4 py-3">${log.leader}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-700">${log.kitId}</td>
+                    <td class="px-4 py-3 text-slate-500">${log.model}</td>
+                    <td class="px-4 py-3 text-right">${log.input || 0}</td>
+                    <td class="px-4 py-3 text-right text-green-600 font-bold">${log.output || 0}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+}
+
+function saveData() {
+    localStorage.setItem('primeXKits', JSON.stringify(kits));
+    localStorage.setItem('primeXLogs', JSON.stringify(productionLogs));
+}
