@@ -1,12 +1,21 @@
 /* 
     PRIME X SYSTEM - FINAL 
-    Updated by Sohail (Specific Logic Updates)
+    Updated by Sohail (Fixed Date/Timezone Logic)
 */
 
 // --- 1. GLOBAL VARIABLES ---
 let kits = JSON.parse(localStorage.getItem('primeXKits')) || [];
 let productionLogs = JSON.parse(localStorage.getItem('primeXLogs')) || [];
 let currentUserRole = '';
+
+// --- Helper: Get Local Date YYYY-MM-DD ---
+function getLocalDateString() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
 // --- 2. LOGIN ---
 function login(role) {
@@ -40,7 +49,9 @@ function setupViewByRole() {
         document.getElementById('kitManagementView').classList.remove('hidden'); 
         renderSidebarKits();
         renderClosedKits();
-        document.getElementById('filterDate').valueAsDate = new Date();
+        
+        // Set Filter to Local Date
+        document.getElementById('filterDate').value = getLocalDateString();
         updateManagerDashboard();
     }
 }
@@ -83,8 +94,8 @@ function handleAddKit(e) {
         remainingQty: parseInt(document.getElementById('totalQtyInput').value) || 0,
         
         status: 'Active', isTransferred: false,
-        createdDate: new Date().toISOString().split('T')[0],
-        createdBy: currentUserRole, // Track who added
+        createdDate: getLocalDateString(), // LOCAL DATE
+        createdBy: currentUserRole,
         logs: []
     };
 
@@ -146,12 +157,10 @@ function showKitDetails(kitId) {
     const card = document.getElementById('kitDetailCard');
     const historyLogs = productionLogs.filter(log => log.kitId === kit.id);
     
-    // Expanded Mini Table Header
     let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Leader</th><th class="p-2">Input</th><th class="p-2">Pack</th><th class="p-2">Rej</th><th class="p-2">Semi</th><th class="p-2">Rwck</th><th class="p-2">Rem</th></tr></thead><tbody>';
     
     if(historyLogs.length > 0) {
         historyLogs.reverse().forEach(log => {
-            // Calculate Rem for that log moment is complex, so we show current Rem of kit or blank
             const rem = kit.totalQty - (kit.packedQty + kit.rejectionQty); 
             logsHTML += `<tr class="border-t border-slate-100"><td class="p-2 text-slate-600">${log.date}</td><td class="p-2">${log.leader}</td><td class="p-2">${log.input||0}</td><td class="p-2 text-green-600 font-bold">${log.output||0}</td><td class="p-2 text-red-600">${log.rejection||0}</td><td class="p-2 text-orange-600">${log.semi||0}</td><td class="p-2 text-purple-600">${log.rework||0}</td><td class="p-2 text-blue-600">${rem}</td></tr>`;
         });
@@ -160,18 +169,14 @@ function showKitDetails(kitId) {
     }
     logsHTML += '</tbody></table></div>';
 
-    // STRICT CLOSE LOGIC: Only show if Fully Completed
     const isCompleted = (kit.packedQty + kit.rejectionQty) === kit.totalQty;
     
     let actionsHTML = '';
     if(currentUserRole === 'Data Incharge') {
         if(kit.status === 'Active') {
             actionsHTML = `<div class="mt-4 flex gap-2 border-t border-slate-100 pt-4">`;
-            
-            // Transfer always available
             actionsHTML += `<button onclick="openTransferModal('${kit.id}')" class="flex-1 bg-orange-500 text-white py-2 rounded text-sm font-semibold">Transfer</button>`;
             
-            // Close ONLY if completed
             if(isCompleted) {
                 actionsHTML += `<button onclick="closeKit('${kit.id}')" class="flex-1 bg-green-600 text-white py-2 rounded text-sm font-semibold">Finish & Close</button>`;
             } else {
@@ -252,7 +257,6 @@ function exportManagerData() {
     if(logs.length === 0) { alert("No logs to export."); return; }
     let csv = "Date,Line,Leader,Kit ID,Model,Input Used,Packed,Rejection,Semi FG,Rework,Rem Kit,Remarks\n";
     logs.forEach(l => {
-        // Find Kit to get its current remaining
         const k = kits.find(kt => kt.id === l.kitId);
         const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
         csv += `${l.date},${l.line},${l.leader},${l.kitId},${l.model},${l.input||0},${l.output||0},${l.rejection||0},${l.semi||0},${l.rework||0},${rem},${l.remarks||''}\n`;
@@ -263,7 +267,6 @@ function exportManagerData() {
     link.click();
 }
 
-// --- ACTIONS ---
 function closeKit(id) {
     if(!confirm("Close this kit?")) return;
     const kit = kits.find(k => k.id === id);
@@ -288,12 +291,11 @@ function openTransferModal(id) {
     if(kit) {
         document.getElementById('transferKitId').value = kit.id;
         document.getElementById('transferFrom').value = kit.line;
-        document.getElementById('transferQty').value = kit.totalQty - (kit.packedQty + kit.rejectionQty); // Suggest remaining
+        document.getElementById('transferQty').value = kit.totalQty - (kit.packedQty + kit.rejectionQty); 
         document.getElementById('transferModal').classList.remove('hidden');
     }
 }
 
-// NEW TRANSFER LOGIC: SPLIT KIT
 function handleTransferKit(e) {
     e.preventDefault();
     const id = document.getElementById('transferKitId').value;
@@ -303,12 +305,10 @@ function handleTransferKit(e) {
     
     if(!originalKit || qty <= 0) return;
 
-    // 1. Reduce Original Kit
     originalKit.totalQty -= qty;
-    originalKit.remainingQty -= qty; // Simple logic update
+    originalKit.remainingQty -= qty; 
 
-    // 2. Create New Transferred Kit
-    const newId = originalKit.id + "-TR"; // Simple Suffix
+    const newId = originalKit.id + "-TR"; 
     const newKit = {
         id: newId,
         model: originalKit.model,
@@ -317,16 +317,13 @@ function handleTransferKit(e) {
         remainingQty: qty,
         packedQty: 0, rejectionQty: 0, semiQty: 0, reworkQty: 0,
         status: 'Active', isTransferred: true,
-        createdDate: new Date().toISOString().split('T')[0],
+        createdDate: getLocalDateString(), // LOCAL DATE
         createdBy: 'Transfer',
         logs: []
     };
     
     kits.push(newKit);
-    
-    // Log
-    productionLogs.push({date: new Date().toISOString().split('T')[0], line: toLine, kitId: originalKit.id, model: originalKit.model, output: 0, rejection: 0, remarks: `Transferred ${qty} to ${newId}`});
-
+    productionLogs.push({date: getLocalDateString(), line: toLine, kitId: originalKit.id, model: originalKit.model, output: 0, rejection: 0, remarks: `Transferred ${qty} to ${newId}`});
     saveData();
     document.getElementById('transferModal').classList.add('hidden');
     renderSidebarKits(); 
@@ -353,14 +350,13 @@ function handleShiftEntry(e) {
     kit.usedQty = (kit.usedQty || 0) + inputUsed;
     kit.packedQty = (kit.packedQty || 0) + packed;
     kit.rejectionQty = (kit.rejectionQty || 0) + rej;
-    kit.semiQty = (kit.semiQty || 0) + semi; // Just tracking sum
+    kit.semiQty = (kit.semiQty || 0) + semi;
     kit.reworkQty = (kit.reworkQty || 0) + rework;
     
-    // Update simple remainingQty property
     kit.remainingQty = kit.totalQty - (kit.packedQty + kit.rejectionQty);
 
     productionLogs.push({
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(), // LOCAL DATE
         line: document.getElementById('lineSelect').value,
         leader: document.getElementById('leaderName').value,
         kitId: kit.id, model: kit.model,
@@ -387,7 +383,6 @@ function updateManagerDashboard() {
     document.getElementById('statRejection').innerText = rej;
     document.getElementById('statSemi').innerText = semi;
     
-    // CHANGED: Active Kits Count
     const activeCount = kits.filter(k => k.status === 'Active' && (fLine === 'All' || k.line === fLine)).length;
     document.getElementById('statActiveKits').innerText = activeCount;
 
