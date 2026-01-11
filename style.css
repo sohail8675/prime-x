@@ -26,6 +26,7 @@ button, .roleBtn, .kit-item {
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 0.5rem;
+    position: relative; /* Added to ensure absolute positioning of badge works relative to card */
 }
 .kit-item:hover, .kit-item:active {
     background-color: #f8fafc;

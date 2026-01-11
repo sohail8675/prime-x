@@ -1,12 +1,15 @@
 /* 
     PRIME X SYSTEM - FINAL 
     Updated by Sohail (Fixed Date/Timezone Logic)
+    Updated for Password & Manager Login History
 */
 
 // --- 1. GLOBAL VARIABLES ---
 let kits = JSON.parse(localStorage.getItem('primeXKits')) || [];
 let productionLogs = JSON.parse(localStorage.getItem('primeXLogs')) || [];
+let managerLoginLogs = JSON.parse(localStorage.getItem('primeXManagerLogs')) || [];
 let currentUserRole = '';
+let pendingRole = ''; // Used for password flow
 
 // --- Helper: Get Local Date YYYY-MM-DD ---
 function getLocalDateString() {
@@ -17,14 +20,86 @@ function getLocalDateString() {
     return `${year}-${month}-${day}`;
 }
 
-// --- 2. LOGIN ---
-function login(role) {
+// --- Helper: Get Full Date Time String ---
+function getLocalDateTimeString() {
+    const d = new Date();
+    return d.toLocaleString();
+}
+
+// --- 2. LOGIN FLOW ---
+
+// Initial Button Click Handler (attached via HTML or listener)
+document.addEventListener('DOMContentLoaded', () => {
+    // Role Button Listeners
+    document.querySelectorAll('.roleBtn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // Traverse up to button in case icon/text was clicked
+            const target = e.target.closest('.roleBtn');
+            const role = target.getAttribute('data-role');
+            handleRoleSelection(role);
+        });
+    });
+
+    // Password Confirm Button
+    document.getElementById('confirmLoginBtn').addEventListener('click', () => {
+        const pass = document.getElementById('rolePassword').value;
+        if (pendingRole === 'Data Incharge') {
+            if (pass === '110125') { // POINT 1: Password Check
+                finalizeLogin('Data Incharge');
+                closeModal('passwordModal');
+            } else {
+                alert('Incorrect Password!');
+            }
+        }
+    });
+
+    // Standard Listeners
+    document.getElementById('logoutBtn').addEventListener('click', () => location.reload());
+    
+    document.getElementById('addKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
+    document.getElementById('closeAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
+
+    document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
+
+    document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
+    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
+    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
+    document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
+});
+
+function handleRoleSelection(role) {
+    if (role === 'Data Incharge') {
+        pendingRole = 'Data Incharge';
+        document.getElementById('rolePassword').value = '';
+        document.getElementById('passwordModal').classList.remove('hidden');
+    } else {
+        finalizeLogin(role);
+    }
+}
+
+function finalizeLogin(role) {
     currentUserRole = role;
+    
+    // POINT 2: Track Manager Login
+    if (role === 'Manager') {
+        managerLoginLogs.unshift({ timestamp: getLocalDateTimeString() }); // Add new login to top
+        if (managerLoginLogs.length > 50) managerLoginLogs.pop(); // Keep last 50
+        localStorage.setItem('primeXManagerLogs', JSON.stringify(managerLoginLogs));
+    }
+
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('header').classList.remove('hidden');
     document.getElementById('mainLayout').classList.remove('hidden');
     document.getElementById('currentRoleDisplay').innerText = role;
     setupViewByRole();
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
 }
 
 // --- 3. VIEW CONTROLLER ---
@@ -35,10 +110,18 @@ function setupViewByRole() {
     document.getElementById('managerView').classList.add('hidden');
     const addBtn = document.getElementById('addKitBtn');
     if(addBtn) addBtn.classList.add('hidden');
+    
+    // Hide Manager History by default
+    document.getElementById('managerLoginHistoryPanel').classList.add('hidden');
 
     if (role === 'Data Incharge') {
         document.getElementById('kitManagementView').classList.remove('hidden');
         if(addBtn) addBtn.classList.remove('hidden');
+        
+        // POINT 2: Show Manager Login History
+        document.getElementById('managerLoginHistoryPanel').classList.remove('hidden');
+        renderManagerLoginHistory();
+
         renderSidebarKits();
         renderClosedKits();
     } else if (role === 'Line Leader') {
@@ -56,24 +139,21 @@ function setupViewByRole() {
     }
 }
 
-// --- 4. EVENT LISTENERS ---
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('logoutBtn').addEventListener('click', () => location.reload());
-    
-    document.getElementById('addKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
-    document.getElementById('closeAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
-    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
-    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
-
-    document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
-
-    document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
-    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
-    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
-    document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
-});
+// POINT 2: Render History Function
+function renderManagerLoginHistory() {
+    const list = document.getElementById('managerLoginList');
+    list.innerHTML = '';
+    if (managerLoginLogs.length === 0) {
+        list.innerHTML = '<div class="italic text-slate-400">No login history available.</div>';
+        return;
+    }
+    managerLoginLogs.forEach(log => {
+        const item = document.createElement('div');
+        item.className = 'border-b border-purple-100 pb-1';
+        item.innerText = `Logged in: ${log.timestamp}`;
+        list.appendChild(item);
+    });
+}
 
 // --- 5. DATA FUNCTIONS ---
 
