@@ -1,6 +1,6 @@
 /* 
-    PRIME X SYSTEM - FINAL UPGRADED VERSION
-    Addressing 6 Specific Points from Sohail
+    PRIME X SYSTEM - FINAL v2.1
+    Fixed: Date Selection on Kit Creation & Date Display
 */
 
 // --- IMPORTS ---
@@ -147,13 +147,31 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).addEventListener('input', updateCalculationDisplay);
     });
 
-    // POINT 3: AUTO FILL DETAILS ON KIT SELECT
+    // CONFUSION FIX (Line Filter)
+    document.getElementById('lineSelect').addEventListener('change', function() {
+        const selectedLine = this.value;
+        const s = document.getElementById('kitSelect');
+        s.innerHTML = '<option value="">Select Kit</option>';
+        
+        const lineKits = kits.filter(k => k.status === 'Active' && k.line === selectedLine);
+        
+        lineKits.forEach(k => {
+            const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+            s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem})</option>`;
+        });
+
+        if (lineKits.length === 1) {
+            s.value = lineKits[0].id;
+            s.dispatchEvent(new Event('change')); 
+        }
+    });
+
+    // Auto Fill Details on Kit Select
     document.getElementById('kitSelect').addEventListener('change', function() {
         const selectedId = this.value;
         const kit = kits.find(k => k.id === selectedId);
         if(kit) {
-            document.getElementById('lineSelect').value = kit.line; // Auto Line
-            document.getElementById('modelDisplay').value = kit.model; // Auto Model
+            document.getElementById('modelDisplay').value = kit.model;
         } else {
             document.getElementById('modelDisplay').value = "";
         }
@@ -246,7 +264,6 @@ function setupViewByRole() {
     } 
     else if (role === 'Line Leader') {
         document.getElementById('lineLeaderView').classList.remove('hidden');
-        updateKitSelectDropdown(); 
     } 
     else if (role === 'Manager') {
         document.getElementById('managerView').classList.remove('hidden');
@@ -280,6 +297,10 @@ async function handleAddKit(e) {
     const newId = document.getElementById('kitIdInput').value.toUpperCase().trim();
     if(kits.some(k => k.id === newId)) { alert("Kit ID exists!"); btn.disabled=false; btn.innerText="Create Kit"; return; }
 
+    // UPDATED DATE LOGIC
+    const dateInput = document.getElementById('kitDateInput').value;
+    const finalDate = dateInput || getLocalDateString();
+
     const newKit = {
         id: newId,
         model: document.getElementById('modelInput').value.toUpperCase(),
@@ -288,7 +309,7 @@ async function handleAddKit(e) {
         usedQty: 0, packedQty: 0, rejectionQty: 0, semiQty: 0, reworkQty: 0,
         remainingQty: parseInt(document.getElementById('totalQtyInput').value) || 0,
         status: 'Active', isTransferred: false,
-        createdDate: getLocalDateString(),
+        createdDate: finalDate, // Using selected date
         createdBy: currentUserRole
     };
 
@@ -310,7 +331,6 @@ async function handleShiftEntry(e) {
     const kit = kits.find(k => k.id === document.getElementById('kitSelect').value);
     if(!kit) { submitBtn.disabled = false; return; }
     
-    // GET VALUES
     const pqcName = document.getElementById('pqcSelect').value; 
     const inputUsed = parseInt(document.getElementById('inputUsed').value) || 0;
     const packed = parseInt(document.getElementById('outputQty').value) || 0;
@@ -318,7 +338,6 @@ async function handleShiftEntry(e) {
     const semi = parseInt(document.getElementById('semiQty').value) || 0;
     const rework = parseInt(document.getElementById('reworkQty').value) || 0;
 
-    // VALIDATION
     const totalOutput = packed + rej + semi + rework;
     if (totalOutput > inputUsed) {
         playSound('error'); 
@@ -368,7 +387,6 @@ async function handleShiftEntry(e) {
         document.getElementById('resOutput').innerText = packed;
         document.getElementById('resRej').innerText = rej;
         
-        // POINT 4: WHATSAPP SHARE INCLUDES MODEL & REMAINING
         const waText = `*PRIME X Update*%0A------------------%0ALine: ${logObj.line}%0ALeader: ${logObj.leader}%0APQC: ${pqcName}%0AKit: ${logObj.kitId}%0AModel: ${logObj.model}%0ARemaining: ${updatedRem}%0A------------------%0AInput: ${inputUsed}%0AOutput: ${packed}%0ARejection: ${rej}`;
         document.getElementById('whatsappShareBtn').onclick = () => {
             window.open(`https://wa.me/?text=${waText}`, '_blank');
@@ -377,10 +395,10 @@ async function handleShiftEntry(e) {
         document.getElementById('resultModal').classList.remove('hidden');
 
         e.target.reset(); 
-        updateKitSelectDropdown();
         document.getElementById('calcHelper').classList.add('hidden'); 
-        // Reset Model Field after submit
         document.getElementById('modelDisplay').value = "";
+        
+        document.getElementById('lineSelect').dispatchEvent(new Event('change'));
 
     } catch (err) {
         alert("Error saving: " + err.message);
@@ -481,8 +499,9 @@ function renderSidebarKits() {
         const ageBadge = `<span class="aging-badge ${ageClass}">${daysOld}d old</span>`;
 
         div.className = `kit-item ${transferClass}`;
+        // UPDATED: Added Date display here
         div.innerHTML = `${badgeHTML}
-            <div class="flex justify-between items-start pointer-events-none"><div><div class="font-bold text-sm text-slate-800">${kit.id} ${ageBadge}</div><div class="text-xs text-slate-500">${kit.model}</div></div><div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div></div>
+            <div class="flex justify-between items-start pointer-events-none"><div><div class="font-bold text-sm text-slate-800">${kit.id} ${ageBadge}</div><div class="text-xs text-slate-500">${kit.model}</div><div class="text-[10px] text-slate-400 mt-1"><i class="far fa-calendar-alt"></i> ${kit.createdDate}</div></div><div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div></div>
             <div class="mt-2 flex justify-between text-xs text-slate-500 pointer-events-none"><span>Total: ${kit.totalQty}</span><span>Rem: <b class="text-slate-800">${safeRem}</b></span></div>`;
         div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
@@ -512,7 +531,8 @@ function showKitDetails(kitId) {
     }
     
     const displayRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
-    card.innerHTML = `<div class="flex justify-between items-center mb-4"><div><h3 class="text-2xl font-bold">${kit.id}</h3><p class="text-slate-500 text-sm">${kit.model}</p></div><div class="text-right"><span class="bg-slate-800 text-white px-2 py-1 rounded text-xs">${kit.line}</span></div></div>
+    // UPDATED: Added Date here
+    card.innerHTML = `<div class="flex justify-between items-center mb-4"><div><h3 class="text-2xl font-bold">${kit.id}</h3><p class="text-slate-500 text-sm">${kit.model}</p><p class="text-xs text-slate-400">Issued: ${kit.createdDate}</p></div><div class="text-right"><span class="bg-slate-800 text-white px-2 py-1 rounded text-xs">${kit.line}</span></div></div>
     <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4 text-center"><div class="bg-slate-50 p-2 border"><p class="text-[10px]">IN</p><b>${kit.totalQty}</b></div><div class="bg-green-50 p-2 border"><p class="text-[10px]">PK</p><b>${kit.packedQty}</b></div><div class="bg-red-50 p-2 border"><p class="text-[10px]">RJ</p><b>${kit.rejectionQty}</b></div><div class="bg-orange-50 p-2 border"><p class="text-[10px]">SF</p><b>${kit.semiQty}</b></div><div class="bg-purple-50 p-2 border"><p class="text-[10px]">RW</p><b>${kit.reworkQty}</b></div><div class="bg-blue-50 p-2 border"><p class="text-[10px]">REM</p><b>${displayRem}</b></div></div>
     ${logsHTML}${actionsHTML}`;
 }
@@ -532,17 +552,7 @@ function renderClosedKits() {
     });
 }
 
-// POINT 1: DROPDOWN SHOWS REMAINING QTY
-function updateKitSelectDropdown() {
-    const s = document.getElementById('kitSelect'); s.innerHTML = '<option value="">Select Kit</option>';
-    kits.filter(k=>k.status==='Active').forEach(k => {
-        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-        s.innerHTML += `<option value="${k.id}">${k.id} (${k.line} - Rem: ${rem})</option>`;
-    });
-}
-
 function updateManagerDashboard() {
-    // POINT 5: DATE RANGE FILTER LOGIC
     const start = document.getElementById('filterStartDate').value;
     const end = document.getElementById('filterEndDate').value;
     const fLine = document.getElementById('filterLine').value;
@@ -565,7 +575,6 @@ function updateManagerDashboard() {
     document.getElementById('statActiveKits').innerText = activeCount;
 
     document.getElementById('statClosed').innerText = kits.filter(k=>k.status==='Closed' && (fLine==='All'||k.line===fLine)).length;
-    // POINT 6: Efficiency Removed
 
     const tbody = document.getElementById('reportTableBody'); tbody.innerHTML = '';
     if(logs.length===0) tbody.innerHTML = '<tr><td colspan="10" class="text-center p-4">No data</td></tr>';
