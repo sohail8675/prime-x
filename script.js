@@ -1,6 +1,6 @@
 /* 
-    PRIME X SYSTEM - FINAL VALIDATION
-    Fixed: Quantity Mismatch Logic (Output <= Input)
+    PRIME X SYSTEM - FINAL UPGRADED VERSION
+    Original 3 Changes + 6 New Features
 */
 
 // --- IMPORTS ---
@@ -22,8 +22,22 @@ function getLocalDateString() {
     return `${year}-${month}-${day}`;
 }
 
-// --- FIRESTORE FUNCTIONS ---
+// 2. SOUND EFFECTS FUNCTION
+function playSound(type) {
+    const s = document.getElementById(type === 'success' ? 'soundSuccess' : 'soundError');
+    if(s) { s.currentTime = 0; s.play().catch(e => console.log("Audio play blocked", e)); }
+}
 
+// 3. KIT AGING CALCULATOR
+function getKitAge(dateString) {
+    const created = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - created);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays;
+}
+
+// --- FIRESTORE FUNCTIONS ---
 async function fetchKits() {
     try {
         const q = await getDocs(collection(db, "kits"));
@@ -129,6 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
     document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
 
+    // 5. AUTO FILL CALCULATION LISTENER
+    const formInputs = ['inputUsed', 'outputQty', 'rejectionQty', 'semiQty', 'reworkQty'];
+    formInputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', updateCalculationDisplay);
+    });
+
     // Global Functions
     window.showKitDetails = showKitDetails;
     window.exportClosedKits = exportClosedKits;
@@ -136,8 +156,39 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeKit = closeKit;
     window.reopenKit = reopenKit;
     window.deleteKit = deleteKit;
-    window.openTransferModal = openTransferModal;
+    window.openTransferModal = openTransferModal; // FIXED: Added this
 });
+
+// 5. AUTO FILL CALCULATION LOGIC
+function updateCalculationDisplay() {
+    const inp = parseInt(document.getElementById('inputUsed').value) || 0;
+    const out = parseInt(document.getElementById('outputQty').value) || 0;
+    const rej = parseInt(document.getElementById('rejectionQty').value) || 0;
+    const semi = parseInt(document.getElementById('semiQty').value) || 0;
+    const rework = parseInt(document.getElementById('reworkQty').value) || 0;
+    
+    const totalOut = out + rej + semi + rework;
+    const diff = inp - totalOut;
+    
+    const helper = document.getElementById('calcHelper');
+    const diffSpan = document.getElementById('calcDiff');
+    
+    if(inp > 0 || totalOut > 0) {
+        helper.classList.remove('hidden');
+        diffSpan.innerText = diff;
+        // Visual cue for validation
+        if(diff < 0) { 
+            helper.classList.replace('bg-blue-50', 'bg-red-50');
+            helper.classList.replace('text-blue-700', 'text-red-700');
+            diffSpan.innerText = diff + " (Error!)";
+        } else {
+            helper.classList.replace('bg-red-50', 'bg-blue-50');
+            helper.classList.replace('text-red-700', 'text-blue-700');
+        }
+    } else {
+        helper.classList.add('hidden');
+    }
+}
 
 // --- DATA INITIALIZATION ---
 async function initializeData(role) {
@@ -200,6 +251,18 @@ function setupViewByRole() {
 
 // --- HANDLERS ---
 
+// ORIGINAL CHANGE 2: Function Added
+function openTransferModal(kitId) {
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    document.getElementById('transferKitId').value = kit.id;
+    document.getElementById('transferFrom').value = kit.line;
+    document.getElementById('transferTo').value = "";
+    document.getElementById('transferQty').value = "";
+    document.getElementById('transferRemarks').value = ""; // Clear remarks
+    document.getElementById('transferModal').classList.remove('hidden');
+}
+
 async function handleAddKit(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
@@ -238,22 +301,22 @@ async function handleShiftEntry(e) {
     const kit = kits.find(k => k.id === document.getElementById('kitSelect').value);
     if(!kit) { submitBtn.disabled = false; return; }
     
-    // 1. GET VALUES
+    // GET VALUES
+    const pqcName = document.getElementById('pqcSelect').value; // ORIGINAL CHANGE 1
     const inputUsed = parseInt(document.getElementById('inputUsed').value) || 0;
     const packed = parseInt(document.getElementById('outputQty').value) || 0;
     const rej = parseInt(document.getElementById('rejectionQty').value) || 0;
     const semi = parseInt(document.getElementById('semiQty').value) || 0;
     const rework = parseInt(document.getElementById('reworkQty').value) || 0;
 
-    // 2. VALIDATION CHECK (Quantity Mismatch)
+    // VALIDATION
     const totalOutput = packed + rej + semi + rework;
     if (totalOutput > inputUsed) {
-        alert(`⚠️ QUANTITY MISMATCH!\n\nInput Used: ${inputUsed}\nTotal Output: ${totalOutput}\n(Packed + Rej + Semi + Rework)\n\nOutput cannot be greater than Input!`);
-        
-        // Reset Button
+        playSound('error'); // 2. SOUND
+        alert(`⚠️ QUANTITY MISMATCH!\nOutput cannot be greater than Input!`);
         submitBtn.disabled = false;
         submitBtn.innerText = "Submit Entry";
-        return; // Stop Process
+        return; 
     }
 
     submitBtn.innerText = "Saving...";
@@ -269,6 +332,7 @@ async function handleShiftEntry(e) {
         date: getLocalDateString(),
         line: document.getElementById('lineSelect').value,
         leader: document.getElementById('leaderName').value,
+        pqc: pqcName, 
         kitId: kit.id, model: kit.model,
         input: inputUsed, output: packed, rejection: rej, semi: semi, rework: rework,
         remarks: document.getElementById('remarksInput').value
@@ -289,10 +353,25 @@ async function handleShiftEntry(e) {
         kit.remainingQty = updatedRem;
         productionLogs.push(logObj);
 
-        document.getElementById('shiftMessage').innerText = "Saved Successfully!";
-        setTimeout(()=>document.getElementById('shiftMessage').innerText="", 2000);
+        // 6. INSTANT RESULT CARD LOGIC
+        playSound('success'); // 2. SOUND
+        
+        document.getElementById('resInput').innerText = inputUsed;
+        document.getElementById('resOutput').innerText = packed;
+        document.getElementById('resRej').innerText = rej;
+        
+        // 1. WHATSAPP SHARE
+        const waText = `*PRIME X Update*%0A------------------%0ALine: ${logObj.line}%0ALeader: ${logObj.leader}%0APQC: ${pqcName}%0AKit: ${logObj.kitId}%0AInput: ${inputUsed}%0AOutput: ${packed}%0ARejection: ${rej}%0A------------------`;
+        document.getElementById('whatsappShareBtn').onclick = () => {
+            window.open(`https://wa.me/?text=${waText}`, '_blank');
+        };
+
+        document.getElementById('resultModal').classList.remove('hidden');
+
         e.target.reset(); 
         updateKitSelectDropdown();
+        document.getElementById('calcHelper').classList.add('hidden'); // Hide calc helper
+
     } catch (err) {
         alert("Error saving: " + err.message);
     } finally {
@@ -307,8 +386,14 @@ async function handleTransferKit(e) {
     const originalKit = kits.find(k => k.id === id);
     const toLine = document.getElementById('transferTo').value;
     const qty = parseInt(document.getElementById('transferQty').value);
+    const remarks = document.getElementById('transferRemarks').value; // ORIGINAL CHANGE 2
     
     if(!originalKit || qty <= 0) return;
+
+    if (qty > originalKit.remainingQty) {
+        alert("Transfer quantity cannot be more than remaining quantity!");
+        return;
+    }
 
     const newRem = originalKit.remainingQty - qty;
     const newTotal = originalKit.totalQty - qty;
@@ -321,7 +406,15 @@ async function handleTransferKit(e) {
         createdDate: getLocalDateString(), createdBy: 'Transfer'
     };
     
-    const logObj = { date: getLocalDateString(), line: toLine, kitId: originalKit.id, model: originalKit.model, output: 0, rejection: 0, remarks: `Transferred ${qty} to ${newId}` };
+    const logObj = { 
+        date: getLocalDateString(), 
+        line: toLine, 
+        kitId: originalKit.id, 
+        model: originalKit.model, 
+        output: 0, 
+        rejection: 0, 
+        remarks: `Transferred ${qty} to ${newId}. ${remarks}` 
+    };
 
     await updateKitInFirestore(originalKit.id, { totalQty: newTotal, remainingQty: newRem });
     await addKitToFirestore(newKit);
@@ -370,9 +463,17 @@ function renderSidebarKits() {
         const transferClass = kit.isTransferred ? 'is-transferred' : '';
         const badgeHTML = kit.isTransferred ? '<div class="transferred-badge">TRANSFERRED</div>' : '';
         const safeRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
+        
+        // 3. KIT AGING LOGIC
+        const daysOld = getKitAge(kit.createdDate);
+        let ageClass = 'age-new';
+        if(daysOld > 7) ageClass = 'age-med';
+        if(daysOld > 15) ageClass = 'age-old';
+        const ageBadge = `<span class="aging-badge ${ageClass}">${daysOld}d old</span>`;
+
         div.className = `kit-item ${transferClass}`;
         div.innerHTML = `${badgeHTML}
-            <div class="flex justify-between items-start pointer-events-none"><div><div class="font-bold text-sm text-slate-800">${kit.id}</div><div class="text-xs text-slate-500">${kit.model}</div></div><div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div></div>
+            <div class="flex justify-between items-start pointer-events-none"><div><div class="font-bold text-sm text-slate-800">${kit.id} ${ageBadge}</div><div class="text-xs text-slate-500">${kit.model}</div></div><div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div></div>
             <div class="mt-2 flex justify-between text-xs text-slate-500 pointer-events-none"><span>Total: ${kit.totalQty}</span><span>Rem: <b class="text-slate-800">${safeRem}</b></span></div>`;
         div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
@@ -385,8 +486,8 @@ function showKitDetails(kitId) {
     const card = document.getElementById('kitDetailCard');
     const logs = productionLogs.filter(log => log.kitId === kit.id).reverse();
     
-    let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Ldr</th><th class="p-2">In</th><th class="p-2">Pk</th><th class="p-2">Rej</th><th class="p-2">Semi</th><th class="p-2">Rwck</th></tr></thead><tbody>';
-    logs.forEach(l => logsHTML += `<tr class="border-t border-slate-100"><td class="p-2">${l.date}</td><td class="p-2">${l.leader}</td><td class="p-2">${l.input||0}</td><td class="p-2 text-green-600">${l.output||0}</td><td class="p-2 text-red-600">${l.rejection||0}</td><td class="p-2">${l.semi||0}</td><td class="p-2">${l.rework||0}</td></tr>`);
+    let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Ldr</th><th class="p-2">PQC</th><th class="p-2">In</th><th class="p-2">Pk</th><th class="p-2">Rej</th><th class="p-2">Semi</th><th class="p-2">Rwck</th></tr></thead><tbody>';
+    logs.forEach(l => logsHTML += `<tr class="border-t border-slate-100"><td class="p-2">${l.date}</td><td class="p-2">${l.leader}</td><td class="p-2">${l.pqc||'-'}</td><td class="p-2">${l.input||0}</td><td class="p-2 text-green-600">${l.output||0}</td><td class="p-2 text-red-600">${l.rejection||0}</td><td class="p-2">${l.semi||0}</td><td class="p-2">${l.rework||0}</td></tr>`);
     logsHTML += '</tbody></table></div>';
 
     const isCompleted = (kit.packedQty + kit.rejectionQty) === kit.totalQty;
@@ -448,13 +549,21 @@ function updateManagerDashboard() {
 
     const tbody = document.getElementById('reportTableBody'); tbody.innerHTML = '';
     if(logs.length===0) tbody.innerHTML = '<tr><td colspan="10" class="text-center p-4">No data</td></tr>';
+    
     logs.forEach(l => {
         const k = kits.find(kt => kt.id === l.kitId);
         const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
         
-        tbody.innerHTML += `<tr>
+        // 4. EFFICIENCY COLOR CODING
+        const efficiency = l.input > 0 ? (l.output / l.input) * 100 : 0;
+        let rowClass = '';
+        if(efficiency > 95) rowClass = 'row-excellent';
+        else if(efficiency < 80 || (l.rejection > l.output * 0.1)) rowClass = 'row-poor';
+
+        tbody.innerHTML += `<tr class="${rowClass}">
             <td class="px-4 py-2">${l.date}</td>
             <td class="px-4">${l.line}</td>
+            <td class="px-4">${l.pqc || '-'}</td> <!-- PQC ADDED -->
             <td class="px-4 font-bold">${l.kitId}</td>
             <td class="px-4">${l.model}</td>
             <td class="px-4 text-right">${l.input||0}</td>
@@ -487,11 +596,11 @@ function exportManagerData() {
     const logs = productionLogs.filter(l => (!fDate || l.date === fDate) && (fLine === 'All' || l.line === fLine));
 
     if(logs.length === 0) { alert("No logs to export."); return; }
-    let csv = "Date,Line,Leader,Kit ID,Model,Input Used,Packed,Rejection,Semi FG,Rework,Rem Kit,Remarks\n";
+    let csv = "Date,Line,Leader,PQC,Kit ID,Model,Input Used,Packed,Rejection,Semi FG,Rework,Rem Kit,Remarks\n";
     logs.forEach(l => {
         const k = kits.find(kt => kt.id === l.kitId);
         const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
-        csv += `${l.date},${l.line},${l.leader},${l.kitId},${l.model},${l.input||0},${l.output||0},${l.rejection||0},${l.semi||0},${l.rework||0},${rem},${l.remarks||''}\n`;
+        csv += `${l.date},${l.line},${l.leader},${l.pqc||'-'},${l.kitId},${l.model},${l.input||0},${l.output||0},${l.rejection||0},${l.semi||0},${l.rework||0},${rem},${l.remarks||''}\n`;
     });
     const link = document.createElement("a");
     link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);

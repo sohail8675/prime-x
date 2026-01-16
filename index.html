@@ -9,6 +9,11 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-slate-100 text-slate-800">
+  
+  <!-- 2. SOUND EFFECTS -->
+  <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+  <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
+
   <div id="app" class="min-h-screen flex flex-col">
     
     <!-- Header -->
@@ -29,7 +34,7 @@
       </div>
     </header>
 
-    <!-- NEW LOGIN SECTION (Email/Pass) -->
+    <!-- LOGIN SECTION -->
     <section id="loginSection" class="flex-grow flex items-center justify-center px-4 bg-slate-50">
       <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <div class="text-center mb-8">
@@ -37,7 +42,6 @@
           <p class="text-slate-500">Sign in to continue</p>
         </div>
         
-        <!-- Login Form -->
         <form id="firebaseLoginForm" class="space-y-5">
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
@@ -134,6 +138,8 @@
             </div>
             <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 md:p-6">
               <form id="shiftForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                
+                <!-- Line Select -->
                 <div>
                   <label class="text-sm font-medium text-slate-700">Line Number</label>
                   <select id="lineSelect" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required>
@@ -142,14 +148,42 @@
                     <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
                   </select>
                 </div>
+
+                <!-- Line Leader -->
                 <div>
                   <label class="text-sm font-medium text-slate-700">Line Leader Name</label>
                   <input id="leaderName" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
                 </div>
+
+                <!-- ORIGINAL CHANGE 1: PQC Select -->
+                <div>
+                    <label class="text-sm font-medium text-slate-700">PQC Name</label>
+                    <select id="pqcSelect" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required>
+                      <option value="">Select PQC</option>
+                      <option>Nikhil</option>
+                      <option>Shubhum</option>
+                      <option>Minu</option>
+                      <option>Vinod</option>
+                      <option>Yaseen</option>
+                      <option>Prashant</option>
+                      <option>Arif</option>
+                      <option>Shukanya</option>
+                    </select>
+                </div>
+
+                <!-- Spacer -->
+                <div class="hidden md:block"></div>
+
                 <div class="md:col-span-2">
                   <label class="text-sm font-medium text-slate-700">Select Active Kit</label>
                   <select id="kitSelect" class="mt-1 w-full border-2 border-blue-100 bg-blue-50 text-blue-900 rounded-lg px-3 py-3 font-semibold" required></select>
                 </div>
+
+                <!-- 5. AUTO FILL CALCULATION DISPLAY -->
+                <div class="md:col-span-2 bg-blue-50 p-2 rounded text-xs text-blue-700 font-bold hidden" id="calcHelper">
+                   Calculated Pending: <span id="calcDiff">0</span>
+                </div>
+
                 <div>
                   <label class="text-sm font-medium text-slate-700">Input Used (Materials Taken)</label>
                   <input type="number" min="0" id="inputUsed" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
@@ -221,6 +255,7 @@
               <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-teal-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Efficiency</p><div id="statEfficiency" class="text-2xl font-bold text-teal-600 mt-1">0%</div></div>
             </div>
 
+            <!-- Detailed Logs Table (ORIGINAL CHANGE 3: Fixed Alignment) -->
             <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
               <div class="flex justify-between items-center mb-4">
                  <h3 class="text-slate-800 font-bold">Detailed Logs</h3>
@@ -229,11 +264,12 @@
                  </button>
               </div>
               <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left text-slate-600">
+                <table class="min-w-full text-sm text-left text-slate-600 whitespace-nowrap">
                   <thead class="bg-slate-50 text-slate-500 uppercase text-xs">
                     <tr>
                         <th class="px-4 py-3 min-w-[100px]">Date</th>
                         <th class="px-4 py-3">Line</th>
+                        <th class="px-4 py-3">PQC</th> 
                         <th class="px-4 py-3">Kit ID</th>
                         <th class="px-4 py-3">Model</th>
                         <th class="px-4 py-3 text-right">Used Qty</th>
@@ -268,6 +304,7 @@
     </div>
   </div>
 
+  <!-- TRANSFER MODAL (ORIGINAL CHANGE 2: Added Remarks) -->
   <div id="transferModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-200 p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-lg font-bold text-slate-800">Transfer Kit</h3><button id="closeTransferBtn" class="text-slate-400 hover:text-red-500"><i class="fas fa-times"></i></button></div>
@@ -275,12 +312,44 @@
         <div class="grid grid-cols-2 gap-4"><div><label class="text-xs text-slate-500">Kit ID</label><input id="transferKitId" class="w-full bg-slate-100 border border-slate-200 rounded px-3 py-2" readonly /></div><div><label class="text-xs text-slate-500">From Line</label><input id="transferFrom" class="w-full bg-slate-100 border border-slate-200 rounded px-3 py-2" readonly /></div></div>
         <div><label class="text-sm font-medium text-slate-700">To Line</label><select id="transferTo" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required><option value="">Select Line</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
         <div><label class="text-sm font-medium text-slate-700">Qty to Transfer</label><input type="number" min="0" id="transferQty" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
+        
+        <!-- Remarks Field -->
+        <div><label class="text-sm font-medium text-slate-700">Transfer Remarks</label><input type="text" id="transferRemarks" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Reason for transfer..." /></div>
+
         <div class="flex justify-end gap-3 pt-4"><button type="button" id="cancelTransferBtn" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition">Confirm Transfer</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Note type="module" is important here -->
+  <!-- 6. INSTANT RESULT MODAL (POPUP) -->
+  <div id="resultModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 p-6 text-center result-modal-content relative">
+          <div class="mb-4">
+              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <i class="fas fa-check text-3xl text-green-600"></i>
+              </div>
+          </div>
+          <h3 class="text-2xl font-bold text-slate-900 mb-1">Excellent Work!</h3>
+          <p class="text-slate-500 text-sm mb-4">Entry saved successfully.</p>
+          
+          <div class="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
+              <div class="flex justify-between text-sm mb-2"><span>Input:</span> <span class="font-bold" id="resInput">0</span></div>
+              <div class="flex justify-between text-sm mb-2"><span>Packed:</span> <span class="font-bold text-green-600" id="resOutput">0</span></div>
+              <div class="flex justify-between text-sm"><span>Rejection:</span> <span class="font-bold text-red-600" id="resRej">0</span></div>
+          </div>
+
+          <div class="flex gap-2">
+              <!-- 1. WHATSAPP SHARE BUTTON -->
+              <button id="whatsappShareBtn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
+                  <i class="fab fa-whatsapp"></i> Share
+              </button>
+              <button onclick="document.getElementById('resultModal').classList.add('hidden')" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg transition">
+                  Close
+              </button>
+          </div>
+      </div>
+  </div>
+
   <script type="module" src="script.js"></script>
 </body>
 </html>

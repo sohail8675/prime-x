@@ -26,7 +26,7 @@ button, .roleBtn, .kit-item {
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 0.5rem;
-    position: relative; /* Added to ensure absolute positioning of badge works relative to card */
+    position: relative; 
 }
 .kit-item:hover, .kit-item:active {
     background-color: #f8fafc;
@@ -40,6 +40,29 @@ button, .roleBtn, .kit-item {
     position: absolute; top: 5px; right: 5px; font-size: 0.6rem;
     background-color: #f97316; color: white; padding: 2px 6px; border-radius: 4px;
     font-weight: bold; text-transform: uppercase;
+}
+
+/* --- NEW STYLES FOR REQUESTED FEATURES --- */
+
+/* 3. Kit Aging Badge */
+.aging-badge {
+    font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px;
+}
+.age-new { background-color: #dcfce7; color: #166534; } /* Green */
+.age-med { background-color: #fef9c3; color: #854d0e; } /* Yellow */
+.age-old { background-color: #fee2e2; color: #991b1b; } /* Red */
+
+/* 4. Efficiency Color Coding (Table Rows) */
+.row-excellent { background-color: #f0fdf4 !important; } /* Green tint */
+.row-poor { background-color: #fef2f2 !important; }      /* Red tint */
+
+/* 6. Instant Result Modal */
+.result-modal-content {
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 .stat-card { transition: transform 0.2s; }
