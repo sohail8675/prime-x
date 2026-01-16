@@ -1,6 +1,6 @@
 /* 
-    PRIME X SYSTEM - FINAL v2.1
-    Fixed: Date Selection on Kit Creation & Date Display
+    PRIME X SYSTEM - FINAL v2.2
+    Fixed: Issue Date Visibility in Dropdown & Model Field
 */
 
 // --- IMPORTS ---
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).addEventListener('input', updateCalculationDisplay);
     });
 
-    // CONFUSION FIX (Line Filter)
+    // CONFUSION FIX (Line Filter) + SHOW DATE IN DROPDOWN
     document.getElementById('lineSelect').addEventListener('change', function() {
         const selectedLine = this.value;
         const s = document.getElementById('kitSelect');
@@ -157,7 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         lineKits.forEach(k => {
             const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-            s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem})</option>`;
+            // CHANGE: Added Date to Dropdown Text
+            s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem} | ${k.createdDate})</option>`;
         });
 
         if (lineKits.length === 1) {
@@ -166,12 +167,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Auto Fill Details on Kit Select
+    // Auto Fill Details on Kit Select + SHOW DATE IN MODEL FIELD
     document.getElementById('kitSelect').addEventListener('change', function() {
         const selectedId = this.value;
         const kit = kits.find(k => k.id === selectedId);
         if(kit) {
-            document.getElementById('modelDisplay').value = kit.model;
+            // CHANGE: Added Date to Model Display Input
+            document.getElementById('modelDisplay').value = `${kit.model} (Issued: ${kit.createdDate})`;
         } else {
             document.getElementById('modelDisplay').value = "";
         }
@@ -297,7 +299,6 @@ async function handleAddKit(e) {
     const newId = document.getElementById('kitIdInput').value.toUpperCase().trim();
     if(kits.some(k => k.id === newId)) { alert("Kit ID exists!"); btn.disabled=false; btn.innerText="Create Kit"; return; }
 
-    // UPDATED DATE LOGIC
     const dateInput = document.getElementById('kitDateInput').value;
     const finalDate = dateInput || getLocalDateString();
 
@@ -309,7 +310,7 @@ async function handleAddKit(e) {
         usedQty: 0, packedQty: 0, rejectionQty: 0, semiQty: 0, reworkQty: 0,
         remainingQty: parseInt(document.getElementById('totalQtyInput').value) || 0,
         status: 'Active', isTransferred: false,
-        createdDate: finalDate, // Using selected date
+        createdDate: finalDate, 
         createdBy: currentUserRole
     };
 
@@ -499,7 +500,6 @@ function renderSidebarKits() {
         const ageBadge = `<span class="aging-badge ${ageClass}">${daysOld}d old</span>`;
 
         div.className = `kit-item ${transferClass}`;
-        // UPDATED: Added Date display here
         div.innerHTML = `${badgeHTML}
             <div class="flex justify-between items-start pointer-events-none"><div><div class="font-bold text-sm text-slate-800">${kit.id} ${ageBadge}</div><div class="text-xs text-slate-500">${kit.model}</div><div class="text-[10px] text-slate-400 mt-1"><i class="far fa-calendar-alt"></i> ${kit.createdDate}</div></div><div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div></div>
             <div class="mt-2 flex justify-between text-xs text-slate-500 pointer-events-none"><span>Total: ${kit.totalQty}</span><span>Rem: <b class="text-slate-800">${safeRem}</b></span></div>`;
@@ -531,7 +531,6 @@ function showKitDetails(kitId) {
     }
     
     const displayRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
-    // UPDATED: Added Date here
     card.innerHTML = `<div class="flex justify-between items-center mb-4"><div><h3 class="text-2xl font-bold">${kit.id}</h3><p class="text-slate-500 text-sm">${kit.model}</p><p class="text-xs text-slate-400">Issued: ${kit.createdDate}</p></div><div class="text-right"><span class="bg-slate-800 text-white px-2 py-1 rounded text-xs">${kit.line}</span></div></div>
     <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4 text-center"><div class="bg-slate-50 p-2 border"><p class="text-[10px]">IN</p><b>${kit.totalQty}</b></div><div class="bg-green-50 p-2 border"><p class="text-[10px]">PK</p><b>${kit.packedQty}</b></div><div class="bg-red-50 p-2 border"><p class="text-[10px]">RJ</p><b>${kit.rejectionQty}</b></div><div class="bg-orange-50 p-2 border"><p class="text-[10px]">SF</p><b>${kit.semiQty}</b></div><div class="bg-purple-50 p-2 border"><p class="text-[10px]">RW</p><b>${kit.reworkQty}</b></div><div class="bg-blue-50 p-2 border"><p class="text-[10px]">REM</p><b>${displayRem}</b></div></div>
     ${logsHTML}${actionsHTML}`;
