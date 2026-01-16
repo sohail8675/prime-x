@@ -1,6 +1,6 @@
 /* 
     PRIME X SYSTEM - FINAL UPGRADED VERSION
-    Original 3 Changes + 6 New Features
+    Addressing 6 Specific Points from Sohail
 */
 
 // --- IMPORTS ---
@@ -22,13 +22,11 @@ function getLocalDateString() {
     return `${year}-${month}-${day}`;
 }
 
-// 2. SOUND EFFECTS FUNCTION
 function playSound(type) {
     const s = document.getElementById(type === 'success' ? 'soundSuccess' : 'soundError');
     if(s) { s.currentTime = 0; s.play().catch(e => console.log("Audio play blocked", e)); }
 }
 
-// 3. KIT AGING CALCULATOR
 function getKitAge(dateString) {
     const created = new Date(dateString);
     const now = new Date();
@@ -143,10 +141,22 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
     document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
 
-    // 5. AUTO FILL CALCULATION LISTENER
+    // AUTO FILL CALCULATION LISTENER
     const formInputs = ['inputUsed', 'outputQty', 'rejectionQty', 'semiQty', 'reworkQty'];
     formInputs.forEach(id => {
         document.getElementById(id).addEventListener('input', updateCalculationDisplay);
+    });
+
+    // POINT 3: AUTO FILL DETAILS ON KIT SELECT
+    document.getElementById('kitSelect').addEventListener('change', function() {
+        const selectedId = this.value;
+        const kit = kits.find(k => k.id === selectedId);
+        if(kit) {
+            document.getElementById('lineSelect').value = kit.line; // Auto Line
+            document.getElementById('modelDisplay').value = kit.model; // Auto Model
+        } else {
+            document.getElementById('modelDisplay').value = "";
+        }
     });
 
     // Global Functions
@@ -156,10 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeKit = closeKit;
     window.reopenKit = reopenKit;
     window.deleteKit = deleteKit;
-    window.openTransferModal = openTransferModal; // FIXED: Added this
+    window.openTransferModal = openTransferModal;
 });
 
-// 5. AUTO FILL CALCULATION LOGIC
+// AUTO FILL CALCULATION LOGIC
 function updateCalculationDisplay() {
     const inp = parseInt(document.getElementById('inputUsed').value) || 0;
     const out = parseInt(document.getElementById('outputQty').value) || 0;
@@ -176,7 +186,6 @@ function updateCalculationDisplay() {
     if(inp > 0 || totalOut > 0) {
         helper.classList.remove('hidden');
         diffSpan.innerText = diff;
-        // Visual cue for validation
         if(diff < 0) { 
             helper.classList.replace('bg-blue-50', 'bg-red-50');
             helper.classList.replace('text-blue-700', 'text-red-700');
@@ -244,14 +253,14 @@ function setupViewByRole() {
         document.getElementById('kitManagementView').classList.remove('hidden'); 
         renderSidebarKits();
         renderClosedKits();
-        document.getElementById('filterDate').value = ""; 
+        document.getElementById('filterStartDate').value = ""; 
+        document.getElementById('filterEndDate').value = ""; 
         updateManagerDashboard();
     }
 }
 
 // --- HANDLERS ---
 
-// ORIGINAL CHANGE 2: Function Added
 function openTransferModal(kitId) {
     const kit = kits.find(k => k.id === kitId);
     if (!kit) return;
@@ -259,7 +268,7 @@ function openTransferModal(kitId) {
     document.getElementById('transferFrom').value = kit.line;
     document.getElementById('transferTo').value = "";
     document.getElementById('transferQty').value = "";
-    document.getElementById('transferRemarks').value = ""; // Clear remarks
+    document.getElementById('transferRemarks').value = ""; 
     document.getElementById('transferModal').classList.remove('hidden');
 }
 
@@ -302,7 +311,7 @@ async function handleShiftEntry(e) {
     if(!kit) { submitBtn.disabled = false; return; }
     
     // GET VALUES
-    const pqcName = document.getElementById('pqcSelect').value; // ORIGINAL CHANGE 1
+    const pqcName = document.getElementById('pqcSelect').value; 
     const inputUsed = parseInt(document.getElementById('inputUsed').value) || 0;
     const packed = parseInt(document.getElementById('outputQty').value) || 0;
     const rej = parseInt(document.getElementById('rejectionQty').value) || 0;
@@ -312,7 +321,7 @@ async function handleShiftEntry(e) {
     // VALIDATION
     const totalOutput = packed + rej + semi + rework;
     if (totalOutput > inputUsed) {
-        playSound('error'); // 2. SOUND
+        playSound('error'); 
         alert(`⚠️ QUANTITY MISMATCH!\nOutput cannot be greater than Input!`);
         submitBtn.disabled = false;
         submitBtn.innerText = "Submit Entry";
@@ -353,15 +362,14 @@ async function handleShiftEntry(e) {
         kit.remainingQty = updatedRem;
         productionLogs.push(logObj);
 
-        // 6. INSTANT RESULT CARD LOGIC
-        playSound('success'); // 2. SOUND
+        playSound('success'); 
         
         document.getElementById('resInput').innerText = inputUsed;
         document.getElementById('resOutput').innerText = packed;
         document.getElementById('resRej').innerText = rej;
         
-        // 1. WHATSAPP SHARE
-        const waText = `*PRIME X Update*%0A------------------%0ALine: ${logObj.line}%0ALeader: ${logObj.leader}%0APQC: ${pqcName}%0AKit: ${logObj.kitId}%0AInput: ${inputUsed}%0AOutput: ${packed}%0ARejection: ${rej}%0A------------------`;
+        // POINT 4: WHATSAPP SHARE INCLUDES MODEL & REMAINING
+        const waText = `*PRIME X Update*%0A------------------%0ALine: ${logObj.line}%0ALeader: ${logObj.leader}%0APQC: ${pqcName}%0AKit: ${logObj.kitId}%0AModel: ${logObj.model}%0ARemaining: ${updatedRem}%0A------------------%0AInput: ${inputUsed}%0AOutput: ${packed}%0ARejection: ${rej}`;
         document.getElementById('whatsappShareBtn').onclick = () => {
             window.open(`https://wa.me/?text=${waText}`, '_blank');
         };
@@ -370,7 +378,9 @@ async function handleShiftEntry(e) {
 
         e.target.reset(); 
         updateKitSelectDropdown();
-        document.getElementById('calcHelper').classList.add('hidden'); // Hide calc helper
+        document.getElementById('calcHelper').classList.add('hidden'); 
+        // Reset Model Field after submit
+        document.getElementById('modelDisplay').value = "";
 
     } catch (err) {
         alert("Error saving: " + err.message);
@@ -386,7 +396,7 @@ async function handleTransferKit(e) {
     const originalKit = kits.find(k => k.id === id);
     const toLine = document.getElementById('transferTo').value;
     const qty = parseInt(document.getElementById('transferQty').value);
-    const remarks = document.getElementById('transferRemarks').value; // ORIGINAL CHANGE 2
+    const remarks = document.getElementById('transferRemarks').value; 
     
     if(!originalKit || qty <= 0) return;
 
@@ -464,7 +474,6 @@ function renderSidebarKits() {
         const badgeHTML = kit.isTransferred ? '<div class="transferred-badge">TRANSFERRED</div>' : '';
         const safeRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
         
-        // 3. KIT AGING LOGIC
         const daysOld = getKitAge(kit.createdDate);
         let ageClass = 'age-new';
         if(daysOld > 7) ageClass = 'age-med';
@@ -523,15 +532,26 @@ function renderClosedKits() {
     });
 }
 
+// POINT 1: DROPDOWN SHOWS REMAINING QTY
 function updateKitSelectDropdown() {
     const s = document.getElementById('kitSelect'); s.innerHTML = '<option value="">Select Kit</option>';
-    kits.filter(k=>k.status==='Active').forEach(k => s.innerHTML += `<option value="${k.id}">${k.id} (${k.line})</option>`);
+    kits.filter(k=>k.status==='Active').forEach(k => {
+        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+        s.innerHTML += `<option value="${k.id}">${k.id} (${k.line} - Rem: ${rem})</option>`;
+    });
 }
 
 function updateManagerDashboard() {
-    const fDate = document.getElementById('filterDate').value;
+    // POINT 5: DATE RANGE FILTER LOGIC
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
     const fLine = document.getElementById('filterLine').value;
-    const logs = productionLogs.filter(l => (!fDate || l.date === fDate) && (fLine === 'All' || l.line === fLine));
+    
+    const logs = productionLogs.filter(l => {
+        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
+        const lineMatch = fLine === 'All' || l.line === fLine;
+        return dateMatch && lineMatch;
+    });
     
     let inp=0, pkd=0, rej=0, semi=0;
     logs.forEach(l => { inp+=l.input||0; pkd+=l.output||0; rej+=l.rejection||0; semi+=l.semi||0; });
@@ -545,7 +565,7 @@ function updateManagerDashboard() {
     document.getElementById('statActiveKits').innerText = activeCount;
 
     document.getElementById('statClosed').innerText = kits.filter(k=>k.status==='Closed' && (fLine==='All'||k.line===fLine)).length;
-    document.getElementById('statEfficiency').innerText = inp>0 ? ((pkd/inp)*100).toFixed(1)+'%' : '0%';
+    // POINT 6: Efficiency Removed
 
     const tbody = document.getElementById('reportTableBody'); tbody.innerHTML = '';
     if(logs.length===0) tbody.innerHTML = '<tr><td colspan="10" class="text-center p-4">No data</td></tr>';
@@ -554,7 +574,6 @@ function updateManagerDashboard() {
         const k = kits.find(kt => kt.id === l.kitId);
         const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
         
-        // 4. EFFICIENCY COLOR CODING
         const efficiency = l.input > 0 ? (l.output / l.input) * 100 : 0;
         let rowClass = '';
         if(efficiency > 95) rowClass = 'row-excellent';
@@ -563,7 +582,7 @@ function updateManagerDashboard() {
         tbody.innerHTML += `<tr class="${rowClass}">
             <td class="px-4 py-2">${l.date}</td>
             <td class="px-4">${l.line}</td>
-            <td class="px-4">${l.pqc || '-'}</td> <!-- PQC ADDED -->
+            <td class="px-4">${l.pqc || '-'}</td> 
             <td class="px-4 font-bold">${l.kitId}</td>
             <td class="px-4">${l.model}</td>
             <td class="px-4 text-right">${l.input||0}</td>
@@ -591,9 +610,14 @@ function exportClosedKits() {
 }
 
 function exportManagerData() {
-    const fDate = document.getElementById('filterDate').value;
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
     const fLine = document.getElementById('filterLine').value;
-    const logs = productionLogs.filter(l => (!fDate || l.date === fDate) && (fLine === 'All' || l.line === fLine));
+    const logs = productionLogs.filter(l => {
+        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
+        const lineMatch = fLine === 'All' || l.line === fLine;
+        return dateMatch && lineMatch;
+    });
 
     if(logs.length === 0) { alert("No logs to export."); return; }
     let csv = "Date,Line,Leader,PQC,Kit ID,Model,Input Used,Packed,Rejection,Semi FG,Rework,Rem Kit,Remarks\n";

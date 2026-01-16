@@ -10,7 +10,7 @@
 </head>
 <body class="bg-slate-100 text-slate-800">
   
-  <!-- 2. SOUND EFFECTS -->
+  <!-- SOUND EFFECTS -->
   <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
   <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
 
@@ -155,7 +155,7 @@
                   <input id="leaderName" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
                 </div>
 
-                <!-- ORIGINAL CHANGE 1: PQC Select -->
+                <!-- PQC Select -->
                 <div>
                     <label class="text-sm font-medium text-slate-700">PQC Name</label>
                     <select id="pqcSelect" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required>
@@ -171,15 +171,19 @@
                     </select>
                 </div>
 
-                <!-- Spacer -->
-                <div class="hidden md:block"></div>
+                <!-- POINT 2: MODEL ADDED NEXT TO PQC -->
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Model</label>
+                    <input id="modelDisplay" class="mt-1 w-full border border-slate-300 bg-slate-100 text-slate-600 rounded-lg px-3 py-2.5" readonly placeholder="Auto-filled" />
+                </div>
 
+                <!-- KIT SELECTION (Moved down slightly to match logic) -->
                 <div class="md:col-span-2">
                   <label class="text-sm font-medium text-slate-700">Select Active Kit</label>
                   <select id="kitSelect" class="mt-1 w-full border-2 border-blue-100 bg-blue-50 text-blue-900 rounded-lg px-3 py-3 font-semibold" required></select>
                 </div>
 
-                <!-- 5. AUTO FILL CALCULATION DISPLAY -->
+                <!-- Auto Fill Calculation -->
                 <div class="md:col-span-2 bg-blue-50 p-2 rounded text-xs text-blue-700 font-bold hidden" id="calcHelper">
                    Calculated Pending: <span id="calcDiff">0</span>
                 </div>
@@ -225,9 +229,14 @@
               </div>
               <div class="flex flex-col md:flex-row gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm w-full md:w-auto">
                   <div class="flex gap-2">
+                    <!-- POINT 5: FROM DATE & TO DATE -->
                     <div>
-                        <label class="text-xs text-slate-500 block">Date</label>
-                        <input type="date" id="filterDate" class="border border-slate-300 text-slate-800 text-sm rounded px-2 py-1">
+                        <label class="text-xs text-slate-500 block">From Date</label>
+                        <input type="date" id="filterStartDate" class="border border-slate-300 text-slate-800 text-sm rounded px-2 py-1">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500 block">To Date</label>
+                        <input type="date" id="filterEndDate" class="border border-slate-300 text-slate-800 text-sm rounded px-2 py-1">
                     </div>
                     <div>
                         <label class="text-xs text-slate-500 block">Line</label>
@@ -252,10 +261,10 @@
               <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-orange-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Semi FG</p><div id="statSemi" class="text-2xl font-bold text-orange-600 mt-1">0</div></div>
               <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-blue-700 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Active Kits</p><div id="statActiveKits" class="text-2xl font-bold text-blue-800 mt-1">0</div></div>
               <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-gray-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Closed Kits</p><div id="statClosed" class="text-2xl font-bold text-gray-700 mt-1">0</div></div>
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-teal-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Efficiency</p><div id="statEfficiency" class="text-2xl font-bold text-teal-600 mt-1">0%</div></div>
+              <!-- POINT 6: EFFICIENCY REMOVED -->
             </div>
 
-            <!-- Detailed Logs Table (ORIGINAL CHANGE 3: Fixed Alignment) -->
+            <!-- Detailed Logs Table -->
             <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
               <div class="flex justify-between items-center mb-4">
                  <h3 class="text-slate-800 font-bold">Detailed Logs</h3>
@@ -304,7 +313,7 @@
     </div>
   </div>
 
-  <!-- TRANSFER MODAL (ORIGINAL CHANGE 2: Added Remarks) -->
+  <!-- TRANSFER MODAL -->
   <div id="transferModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-200 p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-lg font-bold text-slate-800">Transfer Kit</h3><button id="closeTransferBtn" class="text-slate-400 hover:text-red-500"><i class="fas fa-times"></i></button></div>
@@ -313,7 +322,6 @@
         <div><label class="text-sm font-medium text-slate-700">To Line</label><select id="transferTo" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required><option value="">Select Line</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
         <div><label class="text-sm font-medium text-slate-700">Qty to Transfer</label><input type="number" min="0" id="transferQty" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
         
-        <!-- Remarks Field -->
         <div><label class="text-sm font-medium text-slate-700">Transfer Remarks</label><input type="text" id="transferRemarks" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Reason for transfer..." /></div>
 
         <div class="flex justify-end gap-3 pt-4"><button type="button" id="cancelTransferBtn" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition">Confirm Transfer</button></div>
@@ -321,7 +329,7 @@
     </div>
   </div>
 
-  <!-- 6. INSTANT RESULT MODAL (POPUP) -->
+  <!-- INSTANT RESULT MODAL -->
   <div id="resultModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 p-6 text-center result-modal-content relative">
           <div class="mb-4">
@@ -339,7 +347,6 @@
           </div>
 
           <div class="flex gap-2">
-              <!-- 1. WHATSAPP SHARE BUTTON -->
               <button id="whatsappShareBtn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
                   <i class="fab fa-whatsapp"></i> Share
               </button>
