@@ -1,6 +1,6 @@
 /* 
-    PRIME X SYSTEM - FINAL v2.2
-    Fixed: Issue Date Visibility in Dropdown & Model Field
+    PRIME X SYSTEM - FINAL v3
+    Fixed: Sidebar Filters, Closed Kit Filters, Back-Date Logic
 */
 
 // --- IMPORTS ---
@@ -134,12 +134,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
     document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
+    document.getElementById('transferForm').addEventListener('submit', handleShiftEntry);
 
     document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
     document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
+    
+    // NEW: Sidebar Filter Listeners
     document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
+    document.getElementById('sidebarDateFilter').addEventListener('change', renderSidebarKits);
+    document.getElementById('sidebarLineFilter').addEventListener('change', renderSidebarKits);
+
+    // NEW: Closed Kit Filter Listeners
     document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
+    document.getElementById('closedDateFilter').addEventListener('change', renderClosedKits);
+    document.getElementById('closedLineFilter').addEventListener('change', renderClosedKits);
 
     // AUTO FILL CALCULATION LISTENER
     const formInputs = ['inputUsed', 'outputQty', 'rejectionQty', 'semiQty', 'reworkQty'];
@@ -147,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).addEventListener('input', updateCalculationDisplay);
     });
 
-    // CONFUSION FIX (Line Filter) + SHOW DATE IN DROPDOWN
+    // LINE LEADER FILTER LOGIC
     document.getElementById('lineSelect').addEventListener('change', function() {
         const selectedLine = this.value;
         const s = document.getElementById('kitSelect');
@@ -157,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         lineKits.forEach(k => {
             const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-            // CHANGE: Added Date to Dropdown Text
             s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem} | ${k.createdDate})</option>`;
         });
 
@@ -167,12 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Auto Fill Details on Kit Select + SHOW DATE IN MODEL FIELD
+    // Auto Fill Details on Kit Select
     document.getElementById('kitSelect').addEventListener('change', function() {
         const selectedId = this.value;
         const kit = kits.find(k => k.id === selectedId);
         if(kit) {
-            // CHANGE: Added Date to Model Display Input
             document.getElementById('modelDisplay').value = `${kit.model} (Issued: ${kit.createdDate})`;
         } else {
             document.getElementById('modelDisplay').value = "";
@@ -266,6 +272,8 @@ function setupViewByRole() {
     } 
     else if (role === 'Line Leader') {
         document.getElementById('lineLeaderView').classList.remove('hidden');
+        // Initialize Entry Date to Today
+        document.getElementById('entryDate').value = getLocalDateString();
     } 
     else if (role === 'Manager') {
         document.getElementById('managerView').classList.remove('hidden');
@@ -332,6 +340,9 @@ async function handleShiftEntry(e) {
     const kit = kits.find(k => k.id === document.getElementById('kitSelect').value);
     if(!kit) { submitBtn.disabled = false; return; }
     
+    // BACK-DATING LOGIC
+    const selectedDate = document.getElementById('entryDate').value || getLocalDateString();
+
     const pqcName = document.getElementById('pqcSelect').value; 
     const inputUsed = parseInt(document.getElementById('inputUsed').value) || 0;
     const packed = parseInt(document.getElementById('outputQty').value) || 0;
@@ -358,7 +369,7 @@ async function handleShiftEntry(e) {
     const updatedRem = kit.totalQty - (updatedPacked + updatedRej);
 
     const logObj = {
-        date: getLocalDateString(),
+        date: selectedDate, // Using selected date
         line: document.getElementById('lineSelect').value,
         leader: document.getElementById('leaderName').value,
         pqc: pqcName, 
@@ -388,14 +399,27 @@ async function handleShiftEntry(e) {
         document.getElementById('resOutput').innerText = packed;
         document.getElementById('resRej').innerText = rej;
         
-        const waText = `*PRIME X Update*%0A------------------%0ALine: ${logObj.line}%0ALeader: ${logObj.leader}%0APQC: ${pqcName}%0AKit: ${logObj.kitId}%0AModel: ${logObj.model}%0ARemaining: ${updatedRem}%0A------------------%0AInput: ${inputUsed}%0AOutput: ${packed}%0ARejection: ${rej}`;
+        const waText = `*PRIME X Update*%0A------------------%0ADate: ${selectedDate}%0ALine: ${logObj.line}%0ALeader: ${logObj.leader}%0APQC: ${pqcName}%0AKit: ${logObj.kitId}%0AModel: ${logObj.model}%0ARemaining: ${updatedRem}%0A------------------%0AInput: ${inputUsed}%0AOutput: ${packed}%0ARejection: ${rej}`;
         document.getElementById('whatsappShareBtn').onclick = () => {
             window.open(`https://wa.me/?text=${waText}`, '_blank');
         };
 
         document.getElementById('resultModal').classList.remove('hidden');
 
+        // Reset inputs but keep date and line
+        const dateVal = document.getElementById('entryDate').value;
+        const lineVal = document.getElementById('lineSelect').value;
+        const leaderVal = document.getElementById('leaderName').value;
+        const pqcVal = document.getElementById('pqcSelect').value;
+
         e.target.reset(); 
+        
+        // Restore values for speed
+        document.getElementById('entryDate').value = dateVal;
+        document.getElementById('lineSelect').value = lineVal;
+        document.getElementById('leaderName').value = leaderVal;
+        document.getElementById('pqcSelect').value = pqcVal;
+
         document.getElementById('calcHelper').classList.add('hidden'); 
         document.getElementById('modelDisplay').value = "";
         
@@ -482,10 +506,21 @@ async function deleteKit(id) {
 function renderSidebarKits() {
     const list = document.getElementById('kitList');
     const searchTerm = document.getElementById('kitSearch').value.toLowerCase();
-    list.innerHTML = '';
-    const activeKits = kits.filter(k => k.status === 'Active' && (k.id.toLowerCase().includes(searchTerm) || k.model.toLowerCase().includes(searchTerm) || k.line.toLowerCase().includes(searchTerm)));
+    
+    // NEW: Filter Logic
+    const dateFilter = document.getElementById('sidebarDateFilter').value;
+    const lineFilter = document.getElementById('sidebarLineFilter').value;
 
-    if (activeKits.length === 0) { list.innerHTML = '<div class="text-slate-500 text-sm p-4">No active kits.</div>'; return; }
+    list.innerHTML = '';
+    const activeKits = kits.filter(k => {
+        const statusMatch = k.status === 'Active';
+        const searchMatch = k.id.toLowerCase().includes(searchTerm) || k.model.toLowerCase().includes(searchTerm);
+        const dateMatch = !dateFilter || k.createdDate === dateFilter;
+        const lineMatch = !lineFilter || k.line === lineFilter;
+        return statusMatch && searchMatch && dateMatch && lineMatch;
+    });
+
+    if (activeKits.length === 0) { list.innerHTML = '<div class="text-slate-500 text-sm p-4">No active kits found.</div>'; return; }
 
     activeKits.forEach(kit => {
         const div = document.createElement('div');
@@ -539,103 +574,27 @@ function showKitDetails(kitId) {
 function renderClosedKits() {
     const list = document.getElementById('closedKitList');
     const searchTerm = document.getElementById('closedKitSearch').value.toLowerCase();
+    
+    // NEW: Filter Logic for Closed Kits
+    const dateFilter = document.getElementById('closedDateFilter').value;
+    const lineFilter = document.getElementById('closedLineFilter').value;
+
     list.innerHTML = '';
-    const closed = kits.filter(k => k.status === 'Closed' && (k.id.toLowerCase().includes(searchTerm)));
+    const closed = kits.filter(k => {
+        const statusMatch = k.status === 'Closed';
+        const searchMatch = k.id.toLowerCase().includes(searchTerm);
+        const dateMatch = !dateFilter || k.createdDate === dateFilter;
+        const lineMatch = !lineFilter || k.line === lineFilter;
+        return statusMatch && searchMatch && dateMatch && lineMatch;
+    });
+
     if(closed.length === 0) { list.innerHTML = '<p class="text-sm text-slate-500">No closed kits.</p>'; return; }
+    
     closed.forEach(kit => {
         const div = document.createElement('div');
         div.className = 'flex justify-between p-3 bg-slate-50 border rounded mb-2 cursor-pointer';
-        div.innerHTML = `<div><div class="font-bold text-sm">${kit.id}</div></div><div class="text-xs text-red-500 font-bold">CLOSED</div>`;
+        div.innerHTML = `<div><div class="font-bold text-sm">${kit.id}</div><div class="text-[10px] text-slate-400">${kit.createdDate}</div></div><div class="text-right"><div class="text-xs text-red-500 font-bold">CLOSED</div><div class="text-[10px] bg-slate-100 rounded px-1">${kit.line}</div></div>`;
         div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
     });
-}
-
-function updateManagerDashboard() {
-    const start = document.getElementById('filterStartDate').value;
-    const end = document.getElementById('filterEndDate').value;
-    const fLine = document.getElementById('filterLine').value;
-    
-    const logs = productionLogs.filter(l => {
-        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
-        const lineMatch = fLine === 'All' || l.line === fLine;
-        return dateMatch && lineMatch;
-    });
-    
-    let inp=0, pkd=0, rej=0, semi=0;
-    logs.forEach(l => { inp+=l.input||0; pkd+=l.output||0; rej+=l.rejection||0; semi+=l.semi||0; });
-    
-    document.getElementById('statInput').innerText = inp;
-    document.getElementById('statPacked').innerText = pkd;
-    document.getElementById('statRejection').innerText = rej;
-    document.getElementById('statSemi').innerText = semi;
-    
-    const activeCount = kits.filter(k => k.status === 'Active' && (fLine === 'All' || k.line === fLine)).length;
-    document.getElementById('statActiveKits').innerText = activeCount;
-
-    document.getElementById('statClosed').innerText = kits.filter(k=>k.status==='Closed' && (fLine==='All'||k.line===fLine)).length;
-
-    const tbody = document.getElementById('reportTableBody'); tbody.innerHTML = '';
-    if(logs.length===0) tbody.innerHTML = '<tr><td colspan="10" class="text-center p-4">No data</td></tr>';
-    
-    logs.forEach(l => {
-        const k = kits.find(kt => kt.id === l.kitId);
-        const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
-        
-        const efficiency = l.input > 0 ? (l.output / l.input) * 100 : 0;
-        let rowClass = '';
-        if(efficiency > 95) rowClass = 'row-excellent';
-        else if(efficiency < 80 || (l.rejection > l.output * 0.1)) rowClass = 'row-poor';
-
-        tbody.innerHTML += `<tr class="${rowClass}">
-            <td class="px-4 py-2">${l.date}</td>
-            <td class="px-4">${l.line}</td>
-            <td class="px-4">${l.pqc || '-'}</td> 
-            <td class="px-4 font-bold">${l.kitId}</td>
-            <td class="px-4">${l.model}</td>
-            <td class="px-4 text-right">${l.input||0}</td>
-            <td class="px-4 text-right font-bold text-green-600">${l.output||0}</td>
-            <td class="px-4 text-right text-red-600">${l.rejection||0}</td>
-            <td class="px-4 text-right text-orange-600">${l.semi||0}</td>
-            <td class="px-4 text-right text-purple-600">${l.rework||0}</td>
-            <td class="px-4 text-right text-blue-600">${rem}</td>
-        </tr>`;
-    });
-}
-
-function exportClosedKits() {
-    const closed = kits.filter(k => k.status === 'Closed');
-    if(closed.length === 0) { alert("No data"); return; }
-    let csv = "Kit ID,Model,Line,Date,Input,Packed,Reject,SemiFG,Rework,Remain\n";
-    closed.forEach(k => { 
-        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-        csv += `${k.id},${k.model},${k.line},${k.createdDate},${k.totalQty},${k.packedQty},${k.rejectionQty},${k.semiQty||0},${k.reworkQty||0},${rem}\n`; 
-    });
-    const link = document.createElement("a");
-    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
-    link.download = "Closed_Kits.csv";
-    link.click();
-}
-
-function exportManagerData() {
-    const start = document.getElementById('filterStartDate').value;
-    const end = document.getElementById('filterEndDate').value;
-    const fLine = document.getElementById('filterLine').value;
-    const logs = productionLogs.filter(l => {
-        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
-        const lineMatch = fLine === 'All' || l.line === fLine;
-        return dateMatch && lineMatch;
-    });
-
-    if(logs.length === 0) { alert("No logs to export."); return; }
-    let csv = "Date,Line,Leader,PQC,Kit ID,Model,Input Used,Packed,Rejection,Semi FG,Rework,Rem Kit,Remarks\n";
-    logs.forEach(l => {
-        const k = kits.find(kt => kt.id === l.kitId);
-        const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
-        csv += `${l.date},${l.line},${l.leader},${l.pqc||'-'},${l.kitId},${l.model},${l.input||0},${l.output||0},${l.rejection||0},${l.semi||0},${l.rework||0},${rem},${l.remarks||''}\n`;
-    });
-    const link = document.createElement("a");
-    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
-    link.download = "Production_Logs.csv";
-    link.click();
 }
