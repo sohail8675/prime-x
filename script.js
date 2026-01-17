@@ -1,6 +1,8 @@
 /* 
-    PRIME X SYSTEM - FINAL v3
-    Fixed: Sidebar Filters, Closed Kit Filters, Back-Date Logic
+    PRIME X SYSTEM - FINAL v4 (CLEAN & FIXED)
+    1. Fixed: Line Leader Kit Dropdown not showing
+    2. Fixed: Removed extra Sidebar Filters
+    3. Added: Back-date logic
 */
 
 // --- IMPORTS ---
@@ -139,15 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
     document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
     
-    // NEW: Sidebar Filter Listeners
+    // Sidebar Search only
     document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
-    document.getElementById('sidebarDateFilter').addEventListener('change', renderSidebarKits);
-    document.getElementById('sidebarLineFilter').addEventListener('change', renderSidebarKits);
-
-    // NEW: Closed Kit Filter Listeners
     document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
-    document.getElementById('closedDateFilter').addEventListener('change', renderClosedKits);
-    document.getElementById('closedLineFilter').addEventListener('change', renderClosedKits);
 
     // AUTO FILL CALCULATION LISTENER
     const formInputs = ['inputUsed', 'outputQty', 'rejectionQty', 'semiQty', 'reworkQty'];
@@ -157,21 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // LINE LEADER FILTER LOGIC
     document.getElementById('lineSelect').addEventListener('change', function() {
-        const selectedLine = this.value;
-        const s = document.getElementById('kitSelect');
-        s.innerHTML = '<option value="">Select Kit</option>';
-        
-        const lineKits = kits.filter(k => k.status === 'Active' && k.line === selectedLine);
-        
-        lineKits.forEach(k => {
-            const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-            s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem} | ${k.createdDate})</option>`;
-        });
-
-        if (lineKits.length === 1) {
-            s.value = lineKits[0].id;
-            s.dispatchEvent(new Event('change')); 
-        }
+        populateKitDropdown(this.value);
     });
 
     // Auto Fill Details on Kit Select
@@ -194,6 +176,30 @@ document.addEventListener('DOMContentLoaded', () => {
     window.deleteKit = deleteKit;
     window.openTransferModal = openTransferModal;
 });
+
+// Helper for Line Leader Dropdown
+function populateKitDropdown(selectedLine) {
+    const s = document.getElementById('kitSelect');
+    s.innerHTML = '<option value="">Select Kit</option>';
+    
+    let lineKits = [];
+    if (!selectedLine) {
+        // If no line selected, show all active kits (Safety fallback)
+        lineKits = kits.filter(k => k.status === 'Active');
+    } else {
+        lineKits = kits.filter(k => k.status === 'Active' && k.line === selectedLine);
+    }
+    
+    lineKits.forEach(k => {
+        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+        s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem} | ${k.createdDate})</option>`;
+    });
+
+    if (lineKits.length === 1) {
+        s.value = lineKits[0].id;
+        s.dispatchEvent(new Event('change')); 
+    }
+}
 
 // AUTO FILL CALCULATION LOGIC
 function updateCalculationDisplay() {
@@ -272,7 +278,8 @@ function setupViewByRole() {
     } 
     else if (role === 'Line Leader') {
         document.getElementById('lineLeaderView').classList.remove('hidden');
-        // Initialize Entry Date to Today
+        // FIXED: Initial populate of kits so it's not empty
+        populateKitDropdown(""); 
         document.getElementById('entryDate').value = getLocalDateString();
     } 
     else if (role === 'Manager') {
@@ -423,7 +430,8 @@ async function handleShiftEntry(e) {
         document.getElementById('calcHelper').classList.add('hidden'); 
         document.getElementById('modelDisplay').value = "";
         
-        document.getElementById('lineSelect').dispatchEvent(new Event('change'));
+        // Refresh kit list if line was selected
+        if(lineVal) populateKitDropdown(lineVal);
 
     } catch (err) {
         alert("Error saving: " + err.message);
@@ -507,17 +515,11 @@ function renderSidebarKits() {
     const list = document.getElementById('kitList');
     const searchTerm = document.getElementById('kitSearch').value.toLowerCase();
     
-    // NEW: Filter Logic
-    const dateFilter = document.getElementById('sidebarDateFilter').value;
-    const lineFilter = document.getElementById('sidebarLineFilter').value;
-
     list.innerHTML = '';
     const activeKits = kits.filter(k => {
         const statusMatch = k.status === 'Active';
         const searchMatch = k.id.toLowerCase().includes(searchTerm) || k.model.toLowerCase().includes(searchTerm);
-        const dateMatch = !dateFilter || k.createdDate === dateFilter;
-        const lineMatch = !lineFilter || k.line === lineFilter;
-        return statusMatch && searchMatch && dateMatch && lineMatch;
+        return statusMatch && searchMatch;
     });
 
     if (activeKits.length === 0) { list.innerHTML = '<div class="text-slate-500 text-sm p-4">No active kits found.</div>'; return; }
@@ -575,17 +577,11 @@ function renderClosedKits() {
     const list = document.getElementById('closedKitList');
     const searchTerm = document.getElementById('closedKitSearch').value.toLowerCase();
     
-    // NEW: Filter Logic for Closed Kits
-    const dateFilter = document.getElementById('closedDateFilter').value;
-    const lineFilter = document.getElementById('closedLineFilter').value;
-
     list.innerHTML = '';
     const closed = kits.filter(k => {
         const statusMatch = k.status === 'Closed';
         const searchMatch = k.id.toLowerCase().includes(searchTerm);
-        const dateMatch = !dateFilter || k.createdDate === dateFilter;
-        const lineMatch = !lineFilter || k.line === lineFilter;
-        return statusMatch && searchMatch && dateMatch && lineMatch;
+        return statusMatch && searchMatch;
     });
 
     if(closed.length === 0) { list.innerHTML = '<p class="text-sm text-slate-500">No closed kits.</p>'; return; }
