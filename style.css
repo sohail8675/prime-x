@@ -1,73 +1,159 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+/* 
+    PRIME X - DARK CYBERPUNK THEME 
+    Includes UI Polish & Avatars 
+*/
 
-body {
-    font-family: 'Inter', sans-serif;
-    -webkit-tap-highlight-color: transparent;
+/* Utilities */
+.bg-glass { background: rgba(15, 23, 42, 0.6); }
+.glow-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+.glow-border { box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+
+/* Animations */
+@keyframes pulse-slow {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.1); }
 }
+.animate-pulse-slow { animation: pulse-slow 8s infinite ease-in-out; }
 
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-
-.hidden { display: none !important; }
-
-button, .roleBtn, .kit-item {
-    touch-action: manipulation;
-    cursor: pointer;
+@keyframes bounce-small {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
 }
+.animate-bounce-small { animation: bounce-small 2s infinite; }
 
-.roleBtn:active { transform: scale(0.98); }
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.login-card-anim { animation: slideUp 0.6s ease-out forwards; }
 
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Form Styles */
+.form-group label {
+    display: block; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.3rem; letter-spacing: 0.05em;
+}
+.form-input {
+    width: 100%; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155;
+    color: white; border-radius: 0.5rem; padding: 0.6rem 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    transition: all 0.2s; outline: none;
+}
+.form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); background: rgba(15, 23, 42, 0.9); }
+
+.modal-label { display: block; font-size: 0.75rem; color: #cbd5e1; font-weight: 600; margin-bottom: 0.25rem; }
+.modal-input { width: 100%; background: #1e293b; border: 1px solid #475569; color: white; padding: 0.5rem; rounded: 0.5rem; font-size: 0.9rem; outline: none; }
+.modal-input:focus { border-color: #3b82f6; }
+
+/* Kit Item Styles */
 .kit-item {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0; 
-    border-left: 4px solid #cbd5e1;
-    color: #1e293b;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 3px solid #475569;
+    color: #e2e8f0;
     padding: 12px;
     border-radius: 8px;
-    margin-bottom: 0.5rem;
-    position: relative; 
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
 }
-.kit-item:hover, .kit-item:active {
-    background-color: #f8fafc;
+.kit-item:hover {
+    background: rgba(59, 130, 246, 0.1);
     border-left-color: #3b82f6;
+    transform: translateX(2px);
 }
 .kit-item.is-transferred {
-    border-left: 4px solid #f97316;
-    background: linear-gradient(135deg, #fff7ed 95%, rgba(249, 115, 22, 0.1) 100%);
+    border-left-color: #f97316;
+    background: rgba(249, 115, 22, 0.05);
 }
 .transferred-badge {
-    position: absolute; top: 5px; right: 5px; font-size: 0.6rem;
-    background-color: #f97316; color: white; padding: 2px 6px; border-radius: 4px;
-    font-weight: bold; text-transform: uppercase;
+    position: absolute; top: 0; right: 0; background: #f97316; color: white;
+    font-size: 0.55rem; padding: 1px 6px; font-weight: bold; border-bottom-left-radius: 4px;
 }
 
-/* --- NEW STYLES FOR REQUESTED FEATURES --- */
+/* Status Badges */
+.aging-badge { font-size: 0.6rem; padding: 1px 5px; border-radius: 3px; font-weight: bold; margin-left: 6px; border: 1px solid transparent; }
+.age-new { background: rgba(34, 197, 94, 0.1); color: #4ade80; border-color: rgba(34, 197, 94, 0.2); }
+.age-med { background: rgba(234, 179, 8, 0.1); color: #facc15; border-color: rgba(234, 179, 8, 0.2); }
+.age-old { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
 
-/* 3. Kit Aging Badge */
-.aging-badge {
-    font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 5px;
-}
-.age-new { background-color: #dcfce7; color: #166534; } /* Green */
-.age-med { background-color: #fef9c3; color: #854d0e; } /* Yellow */
-.age-old { background-color: #fee2e2; color: #991b1b; } /* Red */
+/* Table Rows */
+.row-excellent td { background: rgba(34, 197, 94, 0.05) !important; color: #86efac; }
+.row-poor td { background: rgba(239, 68, 68, 0.05) !important; color: #fca5a5; }
 
-/* 4. Efficiency Color Coding (Table Rows) */
-.row-excellent { background-color: #f0fdf4 !important; } /* Green tint */
-.row-poor { background-color: #fef2f2 !important; }      /* Red tint */
-
-/* 6. Instant Result Modal */
-.result-modal-content {
-    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-@keyframes popIn {
-    0% { transform: scale(0.8); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+/* Grid Pattern for backgrounds */
+.grid-pattern {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
 }
 
+/* Helpers */
+.hidden { display: none !important; }
 .stat-card { transition: transform 0.2s; }
-.stat-card:hover { transform: translateY(-5px); }
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
 
-@media (max-width: 640px) {
-    th, td { white-space: nowrap; }
+/* --- UI POLISH & NEW FEATURES --- */
+
+/* 1. Line Avatar */
+.line-avatar {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid #334155;
+    color: #94a3b8;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
+
+/* 2. New Arrival Glow */
+.glow-new {
+    animation: border-pulse 2s infinite;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.1) inset;
+    border-left: 3px solid #60a5fa !important;
+}
+@keyframes border-pulse {
+    0% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.1) inset; }
+    50% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) inset; }
+    100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.1) inset; }
+}
+
+/* 3. Quality Grade Badge */
+.grade-badge {
+    font-size: 0.6rem; font-weight: 900; padding: 1px 6px; border-radius: 4px;
+    position: absolute; top: 8px; right: 8px;
+}
+.grade-A { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+.grade-B { background: rgba(250, 204, 21, 0.2); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.3); }
+.grade-C { background: rgba(248, 113, 113, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
+
+/* 4. Skeleton Loading */
+.skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    height: 60px; width: 100%; border-radius: 8px; margin-bottom: 0.5rem; opacity: 0.5;
+}
+@keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* 5. Glass Tooltip */
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.9); border: 1px solid #334155;
+    color: white; padding: 4px 8px; font-size: 0.65rem; border-radius: 4px;
+    white-space: nowrap; pointer-events: none; backdrop-filter: blur(4px); z-index: 10;
+    margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* 6. Mini Stat Grid */
+.mini-stat { font-size: 0.6rem; color: #64748b; text-align: center; }
+.mini-stat b { display: block; font-size: 0.75rem; margin-top: 1px; }
+.text-dynamic-high { color: #4ade80; } /* Green */
+.text-dynamic-med { color: #facc15; } /* Yellow */
+.text-dynamic-low { color: #f87171; } /* Red */

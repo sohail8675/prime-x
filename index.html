@@ -3,229 +3,299 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>PRIME X - Firebase</title>
+  <title>PRIME X | Production OS</title>
+  <!-- Tailwind & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: '#0f172a',
+            darker: '#020617',
+            primary: '#3b82f6',
+            accent: '#06b6d4',
+            glass: 'rgba(30, 41, 59, 0.7)'
+          },
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="bg-slate-100 text-slate-800">
-  
+<body class="bg-darker text-slate-200 antialiased overflow-hidden selection:bg-primary selection:text-white">
+
+  <!-- Background Ambient Effects -->
+  <div class="fixed inset-0 -z-10">
+      <div class="absolute top-0 left-0 w-96 h-96 bg-primary/20 rounded-full blur-[100px] animate-pulse-slow"></div>
+      <div class="absolute bottom-0 right-0 w-[500px] h-[500px] bg-accent/10 rounded-full blur-[120px]"></div>
+  </div>
+
   <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
   <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
 
-  <div id="app" class="min-h-screen flex flex-col">
+  <div id="app" class="h-screen flex flex-col overflow-hidden">
     
-    <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-40 hidden" id="header">
-      <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
-        <div class="text-xl md:text-2xl font-bold text-slate-900 tracking-wide">
-            PRIME <span class="text-blue-600">X</span>
+    <!-- Top Navigation Bar -->
+    <header class="bg-glass backdrop-blur-md border-b border-white/10 hidden z-50" id="header">
+      <div class="w-full px-6 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <i class="fas fa-cube text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wider text-white">PRIME <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">X</span></h1>
+                <p class="text-[10px] text-slate-400 uppercase tracking-widest">Channel play,KADAPA</p>
+            </div>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-6">
           <div class="text-right hidden md:block">
-            <p class="text-xs text-slate-500">Logged in as</p>
-            <span id="currentRoleDisplay" class="text-blue-700 font-bold"></span>
+            <p class="text-[10px] text-slate-400 uppercase">Current Session</p>
+            <span id="currentRoleDisplay" class="text-cyan-400 font-bold font-mono text-sm tracking-wide glow-text"></span>
           </div>
-          <button id="logoutBtn" class="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition">
-            <i class="fas fa-sign-out-alt"></i> Logout
+          <button id="logoutBtn" class="group flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-400 text-slate-300 rounded-lg transition-all duration-300">
+            <i class="fas fa-power-off group-hover:rotate-90 transition-transform"></i> Logout
           </button>
         </div>
       </div>
     </header>
 
     <!-- LOGIN SECTION -->
-    <section id="loginSection" class="flex-grow flex items-center justify-center px-4 bg-slate-50">
-      <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
-        <div class="text-center mb-8">
-          <h1 class="text-4xl font-bold text-slate-900 mb-2">PRIME <span class="text-blue-600">X</span></h1>
-          <p class="text-slate-500">Sign in to continue</p>
-        </div>
+    <section id="loginSection" class="h-screen flex items-center justify-center px-4 relative">
+      <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10"></div>
+      
+      <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-dark/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden relative z-10 login-card-anim">
         
-        <form id="firebaseLoginForm" class="space-y-5">
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                <input type="email" id="loginEmail" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition" placeholder="name@company.com" required>
+        <div class="hidden md:flex flex-col justify-center p-12 bg-gradient-to-br from-blue-900/40 to-slate-900/40 relative">
+            <div class="absolute top-10 left-10 text-white/20 text-6xl font-serif">"</div>
+            <h2 class="text-3xl font-bold text-white mb-6 leading-tight">Efficiency is doing things right; effectiveness is doing the right things.</h2>
+            <p class="text-blue-300 font-mono text-sm">— Peter Drucker</p>
+            <div class="mt-12 flex gap-4">
+                <div class="h-1 w-12 bg-blue-500 rounded-full"></div>
+                <div class="h-1 w-4 bg-slate-600 rounded-full"></div>
+                <div class="h-1 w-4 bg-slate-600 rounded-full"></div>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                <input type="password" id="loginPassword" class="w-full border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition" placeholder="••••••••" required>
-            </div>
-            <div id="loginErrorMsg" class="text-red-500 text-sm text-center hidden"></div>
-            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition shadow-lg">
-                Login Securely
-            </button>
-        </form>
+        </div>
 
-        <div class="mt-8 text-center border-t border-slate-100 pt-6">
-            <p class="text-sm font-semibold text-slate-500">Sohail – The Founder of PRIME X</p>
+        <div class="p-8 md:p-12 flex flex-col justify-center">
+            <div class="mb-10">
+                <h1 class="text-3xl font-bold text-white mb-2"> Welcome to PRIME X</h1>
+                <p class="text-slate-400">The grid is yours. Let's break some records today.</p>
+            </div>
+            
+            <form id="firebaseLoginForm" class="space-y-6">
+                <div class="group">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 group-focus-within:text-blue-400 transition-colors">Email</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-4 top-3.5 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                        <input type="email" id="loginEmail" class="w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono text-sm" placeholder="user@primex.com" required>
+                    </div>
+                </div>
+                <div class="group">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 group-focus-within:text-blue-400 transition-colors">password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-4 top-3.5 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+                        <input type="password" id="loginPassword" class="w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono text-sm" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div id="loginErrorMsg" class="text-red-400 text-xs bg-red-900/20 p-3 rounded-lg border border-red-500/30 text-center hidden"></div>
+                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 transform hover:-translate-y-1 transition-all duration-300">
+                    LET'S GO<i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </form>
+            <div class="mt-8 text-center">
+                <p class="text-xs text-slate-600">Powered by Prime X Systems</p>
+            </div>
         </div>
       </div>
     </section>
 
     <!-- Main Layout -->
-    <div id="mainLayout" class="max-w-7xl mx-auto px-4 py-6 hidden w-full">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div id="mainLayout" class="flex-grow hidden w-full overflow-hidden flex flex-col lg:flex-row">
         
-        <!-- Sidebar -->
-        <aside class="col-span-1 lg:col-span-3 order-2 lg:order-1">
-          <div class="bg-white border border-slate-200 rounded-xl shadow-sm h-[500px] lg:h-full flex flex-col overflow-hidden">
-            <div class="p-4 border-b border-slate-200 bg-slate-50">
-              <div class="text-lg font-bold text-slate-800 mb-2"><i class="fas fa-box text-blue-600"></i> Active Kits</div>
-              
-              <!-- CLEAN SEARCH BAR (Filters Removed as per Point 3) -->
-              <div class="relative">
-                <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-                <input type="text" id="kitSearch" placeholder="Search..." 
-                       class="w-full bg-white border border-slate-300 text-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition shadow-sm">
-              </div>
+        <!-- Sidebar (Active Kits) -->
+        <aside class="w-full lg:w-80 bg-dark/50 backdrop-blur-md border-r border-white/5 flex flex-col h-full z-20">
+          <div class="p-4 border-b border-white/5 bg-gradient-to-r from-slate-800/50 to-transparent">
+            <!-- HEADER WITH BADGE -->
+            <div class="text-sm font-bold text-white mb-3 flex justify-between items-center">
+                <span class="flex items-center gap-2"><i class="fas fa-microchip text-accent"></i> ACTIVE UNITS</span>
+                <span id="activeCountBadge" class="bg-blue-600 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full shadow-lg shadow-blue-500/50 font-mono">0</span>
             </div>
-            <div id="kitList" class="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-grow">
-                <!-- Active Kits will act here -->
+            
+            <div class="flex flex-col gap-2 mb-3">
+                <!-- DATE RANGE INPUTS -->
+                <div class="flex gap-1">
+                    <input type="date" id="sidebarDateStart" class="w-1/2 bg-slate-900 border border-slate-700 text-slate-300 text-[10px] rounded px-1 py-1 outline-none" placeholder="From">
+                    <input type="date" id="sidebarDateEnd" class="w-1/2 bg-slate-900 border border-slate-700 text-slate-300 text-[10px] rounded px-1 py-1 outline-none" placeholder="To">
+                </div>
+                
+                <div class="flex gap-1">
+                     <select id="sidebarLineFilter" class="w-full bg-slate-900 border border-slate-700 text-slate-300 text-[10px] rounded px-2 py-1 focus:border-accent outline-none">
+                        <option value="">All Lines</option>
+                        <option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option>
+                        <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+                    </select>
+                </div>
+                <button id="sidebarFilterBtn" class="bg-slate-700 hover:bg-slate-600 text-white text-[10px] uppercase font-bold py-1.5 rounded transition-colors">Apply Filter</button>
             </div>
+
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="kitSearch" placeholder="Search ID..." 
+                     class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-lg pl-8 pr-2 py-2 text-xs focus:outline-none focus:border-accent transition">
+            </div>
+          </div>
+          <div id="kitList" class="p-3 space-y-2 overflow-y-auto custom-scrollbar flex-grow">
+              <!-- Active Kits -->
           </div>
         </aside>
 
         <!-- Content Area -->
-        <main class="col-span-1 lg:col-span-9 order-1 lg:order-2 space-y-6" id="contentArea">
+        <main class="flex-grow h-full overflow-y-auto custom-scrollbar p-4 lg:p-8 relative" id="contentArea">
           
           <!-- KIT DETAILS VIEW -->
-          <section id="kitManagementView" class="hidden space-y-6">
-            <div class="flex justify-between items-center">
+          <section id="kitManagementView" class="hidden max-w-6xl mx-auto space-y-6">
+            <div class="flex justify-between items-center bg-gradient-to-r from-blue-900/20 to-transparent p-4 rounded-xl border border-white/5">
               <div>
-                <h2 class="text-2xl font-bold text-slate-900">Kit Details</h2>
-                <p class="text-sm text-slate-500">Manage Production & History</p>
+                <h2 class="text-2xl font-bold text-white">Kit Operations</h2>
+                <p class="text-xs text-accent font-mono">SYSTEM: ONLINE</p>
               </div>
-              <button id="addKitBtn" class="hidden px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md">
-                <i class="fas fa-plus mr-2"></i>Add New Kit
+              <button id="addKitBtn" class="hidden px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-900/20 hover:shadow-green-500/30 transition transform hover:-translate-y-0.5">
+                <i class="fas fa-plus-circle mr-2"></i>New Kit
               </button>
             </div>
 
-            <!-- Manager Login History Panel -->
-            <div id="managerLoginHistoryPanel" class="hidden bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
-              <h3 class="text-purple-800 font-bold mb-2"><i class="fas fa-history mr-2"></i>Manager Login History</h3>
-              <div id="managerLoginList" class="max-h-32 overflow-y-auto text-sm text-purple-700 space-y-1 custom-scrollbar">
-                <!-- Fetched from Firestore -->
-              </div>
+            <div id="managerLoginHistoryPanel" class="hidden bg-slate-900/50 border border-purple-500/30 rounded-xl p-4 relative overflow-hidden">
+              <div class="absolute right-0 top-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl"></div>
+              <h3 class="text-purple-400 font-bold mb-2 text-xs uppercase tracking-wider"><i class="fas fa-user-shield mr-2"></i>Access Logs</h3>
+              <div id="managerLoginList" class="max-h-24 overflow-y-auto text-xs text-slate-400 space-y-1 custom-scrollbar font-mono"></div>
             </div>
 
-            <!-- Kit Detail Card -->
-            <div id="kitDetailCard" class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 md:p-6 min-h-[200px]">
-              <div class="text-slate-400 text-center flex flex-col items-center justify-center h-full py-10">
-                <i class="fas fa-mouse-pointer text-3xl mb-3 opacity-30"></i>
-                <p>Select a kit to view details.</p>
+            <div id="kitDetailCard" class="bg-dark/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl p-6 min-h-[250px] relative overflow-hidden">
+               <div class="absolute inset-0 grid-pattern opacity-10 pointer-events-none"></div>
+               <div class="text-slate-500 text-center flex flex-col items-center justify-center h-full py-12">
+                <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 animate-pulse">
+                    <i class="fas fa-cube text-2xl opacity-50"></i>
+                </div>
+                <p class="text-sm font-light">Select a unit from the sidebar to inspect.</p>
               </div>
             </div>
             
-            <!-- Closed Kits History -->
-            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 md:p-6">
-              <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b border-slate-100 pb-2 gap-2">
-                  <h3 class="text-lg font-bold text-slate-800">Closed Kit History</h3>
-                  <button onclick="exportClosedKits()" class="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 transition w-full md:w-auto">
-                      <i class="fas fa-file-excel mr-1"></i> Export Excel
+            <div class="bg-dark/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+              <!-- CLOSED HEADER WITH BADGE -->
+              <div class="flex flex-col md:flex-row justify-between items-end gap-4 mb-6 border-b border-white/5 pb-4">
+                  <div>
+                      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                          Archived Units 
+                          <span id="closedCountBadge" class="bg-slate-700 text-slate-300 text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-mono">0</span>
+                      </h3>
+                      <p class="text-xs text-slate-500">Historical production data</p>
+                  </div>
+                  <button onclick="exportClosedKits()" class="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-3 py-2 rounded hover:bg-emerald-900/50 transition">
+                      <i class="fas fa-download mr-1"></i> Export Data
                   </button>
               </div>
               
-              <!-- CLEAN SEARCH BAR FOR CLOSED KITS -->
-              <div class="mb-4">
-                  <input type="text" id="closedKitSearch" placeholder="Search Closed Kits..." class="w-full md:w-1/3 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
+                  <!-- DATE RANGE FOR CLOSED KITS -->
+                  <div class="flex gap-1 md:col-span-2">
+                      <div class="w-1/2"><label class="text-[10px] text-slate-500 uppercase font-bold">From</label><input type="date" id="closedDateStart" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2"></div>
+                      <div class="w-1/2"><label class="text-[10px] text-slate-500 uppercase font-bold">To</label><input type="date" id="closedDateEnd" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2"></div>
+                  </div>
+                  
+                  <div><label class="text-[10px] text-slate-500 uppercase font-bold">Line</label><select id="closedLineFilter" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2"><option value="">All</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
+                  <div class="relative"><label class="text-[10px] text-slate-500 uppercase font-bold">Search</label><input type="text" id="closedKitSearch" placeholder="Filter ID..." class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2"><button id="closedFilterBtn" class="absolute right-1 bottom-1 bg-slate-700 text-white px-3 py-1 text-xs rounded">Go</button></div>
               </div>
 
-              <div id="closedKitList" class="space-y-2 mb-4 max-h-[300px] overflow-y-auto custom-scrollbar"></div>
+              <div id="closedKitList" class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar"></div>
             </div>
           </section>
 
           <!-- LINE LEADER VIEW -->
-          <section id="lineLeaderView" class="hidden space-y-6">
-            <div>
-              <h2 class="text-2xl font-bold text-slate-900">Line Entry</h2>
-              <p class="text-sm text-slate-500">Record production</p>
+          <section id="lineLeaderView" class="hidden max-w-4xl mx-auto space-y-6">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="p-3 bg-blue-600/20 rounded-lg border border-blue-500/30">
+                    <i class="fas fa-industry text-blue-400 text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Line Command</h2>
+                    <p class="text-sm text-slate-400">Data Entry Terminal</p>
+                </div>
             </div>
-            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 md:p-6">
+
+            <div class="bg-dark/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6 relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500"></div>
+              
               <form id="shiftForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                
-                <!-- Production Date (Back-dating) -->
-                <div class="md:col-span-2 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                    <label class="text-sm font-bold text-slate-800">📅 Production Date</label>
-                    <input type="date" id="entryDate" class="ml-2 border border-slate-300 rounded px-3 py-1.5 bg-white font-medium" required />
-                    <span class="text-xs text-slate-500 ml-2">(Change this for yesterday's entry)</span>
+                <div class="md:col-span-2 bg-yellow-900/10 border border-yellow-500/20 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                        <label class="text-xs font-bold text-yellow-500 uppercase tracking-wide">Production Date</label>
+                        <p class="text-[10px] text-slate-400">Ensure this matches actual shift date.</p>
+                    </div>
+                    <input type="date" id="entryDate" class="bg-dark border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:border-yellow-500 outline-none" required>
                 </div>
 
-                <!-- Line Select -->
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Line Number</label>
-                  <select id="lineSelect" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required>
+                <div class="form-group">
+                  <label>Line Number</label>
+                  <select id="lineSelect" class="form-input" required>
                     <option value="">Select Line</option>
                     <option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option>
                     <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
                   </select>
                 </div>
-
-                <!-- Line Leader -->
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Line Leader Name</label>
-                  <input id="leaderName" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
+                <div class="form-group">
+                  <label>Line Leader</label>
+                  <input id="leaderName" class="form-input" placeholder="Name" required />
                 </div>
 
-                <!-- PQC Select -->
-                <div>
-                    <label class="text-sm font-medium text-slate-700">PQC Name</label>
-                    <select id="pqcSelect" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required>
+                <div class="form-group">
+                    <label>PQC Verifier</label>
+                    <select id="pqcSelect" class="form-input" required>
                       <option value="">Select PQC</option>
-                      <option>Nikhil</option>
-                      <option>Shubhum</option>
-                      <option>Minu</option>
-                      <option>Vinod</option>
-                      <option>Yaseen</option>
-                      <option>Prashant</option>
-                      <option>Arif</option>
-                      <option>Shukanya</option>
+                      <option>Nikhil</option><option>Shubhum</option><option>Minu</option>
+                      <option>Vinod</option><option>Yaseen</option><option>Prashant</option>
+                      <option>Arif</option><option>Shukanya</option>
                     </select>
                 </div>
 
-                <!-- Model (Auto-filled) -->
-                <div>
-                    <label class="text-sm font-medium text-slate-700">Model</label>
-                    <input id="modelDisplay" class="mt-1 w-full border border-slate-300 bg-slate-100 text-slate-600 rounded-lg px-3 py-2.5" readonly placeholder="Auto-filled" />
+                <div class="form-group">
+                    <label>Model Spec</label>
+                    <input id="modelDisplay" class="form-input bg-slate-800/50 text-slate-400 cursor-not-allowed" readonly placeholder="Auto-fills on Kit Select" />
                 </div>
 
-                <!-- KIT SELECTION -->
                 <div class="md:col-span-2">
-                  <label class="text-sm font-medium text-slate-700">Select Active Kit</label>
-                  <select id="kitSelect" class="mt-1 w-full border-2 border-blue-100 bg-blue-50 text-blue-900 rounded-lg px-3 py-3 font-semibold" required></select>
+                  <label class="block text-xs font-bold text-cyan-400 uppercase mb-1">Active Kit Module</label>
+                  <select id="kitSelect" class="w-full bg-slate-900/80 border-2 border-blue-500/30 text-white rounded-xl px-4 py-3 font-mono text-sm focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(6,182,212,0.3)] outline-none transition-all" required>
+                      <option value="">⚠ Select Line Number First</option>
+                  </select>
                 </div>
 
-                <!-- Auto Fill Calculation -->
-                <div class="md:col-span-2 bg-blue-50 p-2 rounded text-xs text-blue-700 font-bold hidden" id="calcHelper">
-                   Calculated Pending: <span id="calcDiff">0</span>
+                <div class="md:col-span-2 bg-blue-900/20 border border-blue-500/30 p-2 rounded text-xs text-blue-300 font-mono hidden" id="calcHelper">
+                   Pending Balance: <span id="calcDiff" class="font-bold">0</span>
                 </div>
 
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Input Used (Materials Taken)</label>
-                  <input type="number" min="0" id="inputUsed" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
+                <div class="form-group"><label>Input (Material)</label><input type="number" min="0" id="inputUsed" class="form-input" required /></div>
+                <div class="form-group"><label class="text-green-400">Packed Output</label><input type="number" min="0" id="outputQty" class="form-input border-green-500/30 focus:border-green-500" required /></div>
+                <div class="form-group"><label class="text-red-400">Rejection</label><input type="number" min="0" id="rejectionQty" class="form-input border-red-500/30 focus:border-red-500" required /></div>
+                <div class="form-group"><label class="text-orange-400">Semi-FG</label><input type="number" min="0" id="semiQty" class="form-input border-orange-500/30 focus:border-orange-500" required /></div>
+                <div class="form-group"><label class="text-purple-400">Rework</label><input type="number" min="0" id="reworkQty" class="form-input border-purple-500/30 focus:border-purple-500" required /></div>
+                
+                <div class="md:col-span-2 form-group">
+                  <label>Remarks</label>
+                  <input type="text" id="remarksInput" class="form-input" placeholder="Optional notes..." />
                 </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Packed Output</label>
-                  <input type="number" min="0" id="outputQty" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Rejection</label>
-                  <input type="number" min="0" id="rejectionQty" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Semi-FG (Part of Kit)</label>
-                  <input type="number" min="0" id="semiQty" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" required />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Rework Pending Pieces</label>
-                  <input type="number" min="0" id="reworkQty" class="mt-1 w-full border border-purple-200 rounded-lg px-3 py-2.5 bg-purple-50" required />
-                </div>
-                <div class="md:col-span-2">
-                  <label class="text-sm font-medium text-slate-700">Remarks</label>
-                  <input type="text" id="remarksInput" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50" placeholder="Optional" />
-                </div>
-                <div class="md:col-span-2 flex justify-end items-center gap-4 mt-2">
-                  <div id="shiftMessage" class="text-sm font-medium text-green-600"></div>
-                  <button type="submit" class="w-full md:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md">Submit Entry</button>
+
+                <div class="md:col-span-2 pt-4">
+                  <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/50 transition-all transform hover:-translate-y-1">
+                      <i class="fas fa-save mr-2"></i> Commit Data Entry
+                  </button>
                 </div>
               </form>
             </div>
@@ -233,72 +303,49 @@
 
           <!-- MANAGER OVERVIEW -->
           <section id="managerView" class="hidden space-y-6">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div>
-                <h2 class="text-2xl font-bold text-slate-900">Production Overview</h2>
-                <p class="text-sm text-slate-500">Live Dashboard</p>
+                <h2 class="text-3xl font-bold text-white">Dashboard</h2>
+                <p class="text-sm text-slate-400">Real-time Production DATA</p>
               </div>
-              <div class="flex flex-col md:flex-row gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm w-full md:w-auto">
-                  <div class="flex gap-2">
-                    <div>
-                        <label class="text-xs text-slate-500 block">From Date</label>
-                        <input type="date" id="filterStartDate" class="border border-slate-300 text-slate-800 text-sm rounded px-2 py-1">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-500 block">To Date</label>
-                        <input type="date" id="filterEndDate" class="border border-slate-300 text-slate-800 text-sm rounded px-2 py-1">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-500 block">Line</label>
-                        <select id="filterLine" class="border border-slate-300 text-slate-800 text-sm rounded px-2 py-1 w-24">
-                            <option value="All">All</option>
-                            <option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option>
-                            <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
-                        </select>
-                    </div>
-                  </div>
-                  <div class="flex gap-2">
-                      <button id="applyFilter" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm flex-1">Go</button>
-                      <button onclick="exportManagerData()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm flex-1"><i class="fas fa-file-excel"></i> Export</button>
-                  </div>
+              <div class="flex flex-wrap gap-2 bg-slate-900/80 p-2 rounded-xl border border-white/10">
+                  <input type="date" id="filterStartDate" class="bg-transparent border border-slate-700 text-white text-xs rounded px-2 py-1">
+                  <input type="date" id="filterEndDate" class="bg-transparent border border-slate-700 text-white text-xs rounded px-2 py-1">
+                  <select id="filterLine" class="bg-transparent border border-slate-700 text-white text-xs rounded px-2 py-1 w-20">
+                      <option value="All">All</option>
+                      <option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option>
+                      <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+                  </select>
+                  <button id="applyFilter" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs font-bold">GO</button>
+                  <button onclick="exportManagerData()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold"><i class="fas fa-file-csv"></i></button>
               </div>
             </div>
             
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-blue-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Total Input</p><div id="statInput" class="text-2xl font-bold text-slate-800 mt-1">0</div></div>
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-green-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Packed Qty</p><div id="statPacked" class="text-2xl font-bold text-green-600 mt-1">0</div></div>
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-red-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Rejection</p><div id="statRejection" class="text-2xl font-bold text-red-600 mt-1">0</div></div>
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-orange-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Semi FG</p><div id="statSemi" class="text-2xl font-bold text-orange-600 mt-1">0</div></div>
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-blue-700 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Active Kits</p><div id="statActiveKits" class="text-2xl font-bold text-blue-800 mt-1">0</div></div>
-              <div class="stat-card bg-white p-4 rounded-xl border-l-4 border-gray-500 shadow-sm"><p class="text-xs text-slate-500 uppercase font-bold">Closed Kits</p><div id="statClosed" class="text-2xl font-bold text-gray-700 mt-1">0</div></div>
+            <!-- DASHBOARD CARDS -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-blue-500"><p class="text-[10px] text-slate-400 uppercase font-bold">Input</p><div id="statInput" class="text-2xl font-mono font-bold text-white mt-1">0</div></div>
+              <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-green-500"><p class="text-[10px] text-slate-400 uppercase font-bold">Packed</p><div id="statPacked" class="text-2xl font-mono font-bold text-green-400 mt-1">0</div></div>
+              <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-red-500"><p class="text-[10px] text-slate-400 uppercase font-bold">Reject</p><div id="statRejection" class="text-2xl font-mono font-bold text-red-400 mt-1">0</div></div>
+              <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-orange-500"><p class="text-[10px] text-slate-400 uppercase font-bold">Semi FG</p><div id="statSemi" class="text-2xl font-mono font-bold text-orange-400 mt-1">0</div></div>
+              
+              <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-purple-500"><p class="text-[10px] text-slate-400 uppercase font-bold">Rework Pending</p><div id="statReworkPending" class="text-2xl font-mono font-bold text-purple-400 mt-1">0</div></div>
+              <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-cyan-500"><p class="text-[10px] text-slate-400 uppercase font-bold">Kit Remaining</p><div id="statKitRemaining" class="text-2xl font-mono font-bold text-cyan-400 mt-1">0</div></div>
             </div>
 
-            <!-- Detailed Logs Table -->
-            <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
-              <div class="flex justify-between items-center mb-4">
-                 <h3 class="text-slate-800 font-bold">Detailed Logs</h3>
-                 <button onclick="exportManagerData()" class="text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded text-slate-700 border border-slate-300">
-                     Download CSV
-                 </button>
-              </div>
-              <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left text-slate-600 whitespace-nowrap">
-                  <thead class="bg-slate-50 text-slate-500 uppercase text-xs">
+            <div class="bg-dark/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg p-6">
+              <h3 class="text-white font-bold mb-4">Production Logs</h3>
+              <div class="overflow-x-auto rounded-lg border border-white/5">
+                <table class="min-w-full text-sm text-left text-slate-300 whitespace-nowrap">
+                  <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-500">
                     <tr>
-                        <th class="px-4 py-3 min-w-[100px]">Date</th>
-                        <th class="px-4 py-3">Line</th>
-                        <th class="px-4 py-3">PQC</th> 
-                        <th class="px-4 py-3">Kit ID</th>
-                        <th class="px-4 py-3">Model</th>
-                        <th class="px-4 py-3 text-right">Used Qty</th>
-                        <th class="px-4 py-3 text-right">Packed</th>
-                        <th class="px-4 py-3 text-right">Rej</th>
-                        <th class="px-4 py-3 text-right">Semi FG</th>
-                        <th class="px-4 py-3 text-right">Rework</th>
-                        <th class="px-4 py-3 text-right text-blue-600">Rem Kit</th>
+                        <th class="px-4 py-3">Date</th><th class="px-4 py-3">Line</th><th class="px-4 py-3">PQC</th> 
+                        <th class="px-4 py-3">Kit ID</th><th class="px-4 py-3">Model</th>
+                        <th class="px-4 py-3 text-right">In</th><th class="px-4 py-3 text-right text-green-400">Pk</th>
+                        <th class="px-4 py-3 text-right text-red-400">Rej</th><th class="px-4 py-3 text-right text-orange-400">Semi</th>
+                        <th class="px-4 py-3 text-right text-purple-400">Rw</th><th class="px-4 py-3 text-right text-blue-400">Rem</th>
                     </tr>
                   </thead>
-                  <tbody id="reportTableBody" class="divide-y divide-slate-100"></tbody>
+                  <tbody id="reportTableBody" class="divide-y divide-slate-800 font-mono text-xs"></tbody>
                 </table>
               </div>
             </div>
@@ -309,62 +356,62 @@
   </div>
 
   <!-- Modals -->
-  <div id="addKitModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-200 p-6 space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-lg font-bold text-slate-800">Add New Kit</h3><button id="closeAddKitBtn" class="text-slate-400 hover:text-red-500"><i class="fas fa-times"></i></button></div>
+  <!-- Add Kit Modal -->
+  <div id="addKitModal" class="modal fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50 backdrop-blur-md">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 glow-border">
+      <div class="flex justify-between items-center border-b border-white/10 pb-2"><h3 class="text-lg font-bold text-white">Initialize New Kit</h3><button id="closeAddKitBtn" class="text-slate-500 hover:text-white"><i class="fas fa-times"></i></button></div>
       <form id="addKitForm" class="space-y-4">
-        <div><label class="text-sm font-medium text-slate-700">Kit ID</label><input id="kitIdInput" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
-        
-        <div><label class="text-sm font-medium text-slate-700">Issue Date</label><input type="date" id="kitDateInput" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
-        
-        <div><label class="text-sm font-medium text-slate-700">Model Name</label><input id="modelInput" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
-        <div><label class="text-sm font-medium text-slate-700">Total Quantity</label><input type="number" min="1" id="totalQtyInput" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
-        <div><label class="text-sm font-medium text-slate-700">Issued Line</label><select id="issuedLineInput" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required><option value="">Select Line</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
-        <div class="flex justify-end gap-3 pt-4"><button type="button" id="cancelAddKitBtn" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">Create Kit</button></div>
+        <div><label class="modal-label">Kit ID</label><input id="kitIdInput" class="modal-input" required /></div>
+        <div><label class="modal-label">Issue Date</label><input type="date" id="kitDateInput" class="modal-input" required /></div>
+        <div><label class="modal-label">Model Name</label><input id="modelInput" class="modal-input" required /></div>
+        <div><label class="modal-label">Total Quantity</label><input type="number" min="1" id="totalQtyInput" class="modal-input" required /></div>
+        <div><label class="modal-label">Issued Line</label><select id="issuedLineInput" class="modal-input" required><option value="">Select Line</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
+        <div class="flex justify-end gap-3 pt-4"><button type="button" id="cancelAddKitBtn" class="px-4 py-2 rounded-lg border border-slate-600 text-slate-400 hover:bg-slate-800">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500 shadow-lg shadow-emerald-900/50">Create Kit</button></div>
       </form>
     </div>
   </div>
 
-  <!-- TRANSFER MODAL -->
-  <div id="transferModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-200 p-6 space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-2"><h3 class="text-lg font-bold text-slate-800">Transfer Kit</h3><button id="closeTransferBtn" class="text-slate-400 hover:text-red-500"><i class="fas fa-times"></i></button></div>
+  <!-- Transfer Modal -->
+  <div id="transferModal" class="modal fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50 backdrop-blur-md">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 glow-border">
+      <div class="flex justify-between items-center border-b border-white/10 pb-2"><h3 class="text-lg font-bold text-white">Transfer Protocol</h3><button id="closeTransferBtn" class="text-slate-500 hover:text-white"><i class="fas fa-times"></i></button></div>
       <form id="transferForm" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4"><div><label class="text-xs text-slate-500">Kit ID</label><input id="transferKitId" class="w-full bg-slate-100 border border-slate-200 rounded px-3 py-2" readonly /></div><div><label class="text-xs text-slate-500">From Line</label><input id="transferFrom" class="w-full bg-slate-100 border border-slate-200 rounded px-3 py-2" readonly /></div></div>
-        <div><label class="text-sm font-medium text-slate-700">To Line</label><select id="transferTo" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required><option value="">Select Line</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
-        <div><label class="text-sm font-medium text-slate-700">Qty to Transfer</label><input type="number" min="0" id="transferQty" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" required /></div>
-        
-        <div><label class="text-sm font-medium text-slate-700">Transfer Remarks</label><input type="text" id="transferRemarks" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Reason for transfer..." /></div>
-
-        <div class="flex justify-end gap-3 pt-4"><button type="button" id="cancelTransferBtn" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition">Confirm Transfer</button></div>
+        <div class="grid grid-cols-2 gap-4"><div><label class="text-[10px] text-slate-500 uppercase">Kit ID</label><input id="transferKitId" class="w-full bg-slate-800 border border-slate-700 text-slate-400 rounded px-3 py-2 text-sm" readonly /></div><div><label class="text-[10px] text-slate-500 uppercase">From Line</label><input id="transferFrom" class="w-full bg-slate-800 border border-slate-700 text-slate-400 rounded px-3 py-2 text-sm" readonly /></div></div>
+        <div><label class="modal-label">Target Line</label><select id="transferTo" class="modal-input" required><option value="">Select Line</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select></div>
+        <div><label class="modal-label">Transfer Qty</label><input type="number" min="0" id="transferQty" class="modal-input" required /></div>
+        <div><label class="modal-label">Protocol Remarks</label><input type="text" id="transferRemarks" class="modal-input" placeholder="Authorization note..." /></div>
+        <div class="flex justify-end gap-3 pt-4"><button type="button" id="cancelTransferBtn" class="px-4 py-2 rounded-lg border border-slate-600 text-slate-400 hover:bg-slate-800">Cancel</button><button type="submit" class="px-4 py-2 rounded-lg bg-orange-600 text-white font-bold hover:bg-orange-500 shadow-lg shadow-orange-900/50">Execute Transfer</button></div>
       </form>
     </div>
   </div>
 
-  <!-- INSTANT RESULT MODAL -->
-  <div id="resultModal" class="modal fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 p-6 text-center result-modal-content relative">
-          <div class="mb-4">
-              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <i class="fas fa-check text-3xl text-green-600"></i>
-              </div>
-          </div>
-          <h3 class="text-2xl font-bold text-slate-900 mb-1">Excellent Work!</h3>
-          <p class="text-slate-500 text-sm mb-4">Entry saved successfully.</p>
-          
-          <div class="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100">
-              <div class="flex justify-between text-sm mb-2"><span>Input:</span> <span class="font-bold" id="resInput">0</span></div>
-              <div class="flex justify-between text-sm mb-2"><span>Packed:</span> <span class="font-bold text-green-600" id="resOutput">0</span></div>
-              <div class="flex justify-between text-sm"><span>Rejection:</span> <span class="font-bold text-red-600" id="resRej">0</span></div>
-          </div>
+  <!-- Result Modal -->
+  <div id="resultModal" class="modal fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50 backdrop-blur-md">
+      <div class="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm border border-emerald-500/50 p-8 text-center relative overflow-hidden">
+          <div class="absolute inset-0 bg-emerald-500/10 blur-xl"></div>
+          <div class="relative z-10">
+            <div class="mb-6">
+                <div class="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto ring-2 ring-emerald-500 animate-bounce-small">
+                    <i class="fas fa-check text-4xl text-emerald-400"></i>
+                </div>
+            </div>
+            <h3 class="text-2xl font-bold text-white mb-1">Entry Confirmed</h3>
+            <p class="text-slate-400 text-sm mb-6">Data synchronized with server.</p>
+            
+            <div class="bg-slate-800/50 rounded-xl p-4 mb-6 border border-white/5 font-mono">
+                <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Input:</span> <span class="font-bold text-white" id="resInput">0</span></div>
+                <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Packed:</span> <span class="font-bold text-emerald-400" id="resOutput">0</span></div>
+                <div class="flex justify-between text-sm text-slate-300"><span>Reject:</span> <span class="font-bold text-red-400" id="resRej">0</span></div>
+            </div>
 
-          <div class="flex gap-2">
-              <button id="whatsappShareBtn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
-                  <i class="fab fa-whatsapp"></i> Share
-              </button>
-              <button onclick="document.getElementById('resultModal').classList.add('hidden')" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg transition">
-                  Close
-              </button>
+            <div class="flex gap-3">
+                <button id="whatsappShareBtn" class="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
+                    <i class="fab fa-whatsapp"></i> Report
+                </button>
+                <button onclick="document.getElementById('resultModal').classList.add('hidden')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition">
+                    Close
+                </button>
+            </div>
           </div>
       </div>
   </div>

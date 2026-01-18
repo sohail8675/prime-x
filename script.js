@@ -1,8 +1,6 @@
 /* 
-    PRIME X SYSTEM - FINAL v4 (CLEAN & FIXED)
-    1. Fixed: Line Leader Kit Dropdown not showing
-    2. Fixed: Removed extra Sidebar Filters
-    3. Added: Back-date logic
+    PRIME X SYSTEM - PRO EDITION v3.1
+    Preserved Logic + Date Range & Creation Manifest
 */
 
 // --- IMPORTS ---
@@ -97,7 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = loginForm.querySelector('button');
 
             errorMsg.classList.add('hidden');
-            btn.innerText = "Logging in...";
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Authenticating...';
             btn.disabled = true;
 
             try {
@@ -114,9 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (error) {
                 console.error("Login Failed:", error);
-                errorMsg.innerText = "Login Failed: " + error.message;
+                errorMsg.innerText = "Access Denied: " + error.message;
                 errorMsg.classList.remove('hidden');
-                btn.innerText = "Login Securely";
+                btn.innerHTML = originalBtnText;
                 btn.disabled = false;
             }
         });
@@ -136,14 +135,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('closeTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
     document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('transferForm').addEventListener('submit', handleShiftEntry);
+    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
 
     document.getElementById('shiftForm').addEventListener('submit', handleShiftEntry);
     document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
     
-    // Sidebar Search only
-    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits);
+    // FILTERS
+    document.getElementById('sidebarFilterBtn').addEventListener('click', renderSidebarKits);
+    document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits); 
+    // NEW: Date Listeners
+    document.getElementById('sidebarDateStart').addEventListener('change', renderSidebarKits);
+    document.getElementById('sidebarDateEnd').addEventListener('change', renderSidebarKits);
+    
+    document.getElementById('closedFilterBtn').addEventListener('click', renderClosedKits);
     document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
+    // NEW: Closed Date Listeners
+    document.getElementById('closedDateStart').addEventListener('change', renderClosedKits);
+    document.getElementById('closedDateEnd').addEventListener('change', renderClosedKits);
+
 
     // AUTO FILL CALCULATION LISTENER
     const formInputs = ['inputUsed', 'outputQty', 'rejectionQty', 'semiQty', 'reworkQty'];
@@ -151,12 +160,30 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).addEventListener('input', updateCalculationDisplay);
     });
 
-    // LINE LEADER FILTER LOGIC
+    // BUG FIX & ACTIVE KIT LOGIC
     document.getElementById('lineSelect').addEventListener('change', function() {
-        populateKitDropdown(this.value);
+        const selectedLine = this.value;
+        const s = document.getElementById('kitSelect');
+        s.innerHTML = ''; 
+
+        if (!selectedLine) {
+            s.innerHTML = '<option value="">Select Line First</option>';
+            return;
+        }
+        
+        const lineKits = kits.filter(k => k.status === 'Active' && k.line === selectedLine);
+        
+        if (lineKits.length === 0) {
+            s.innerHTML = '<option value="">No Active Kits</option>';
+        } else {
+            s.innerHTML = '<option value="">Select Kit</option>';
+            lineKits.forEach(k => {
+                const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+                s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem} | ${k.createdDate})</option>`;
+            });
+        }
     });
 
-    // Auto Fill Details on Kit Select
     document.getElementById('kitSelect').addEventListener('change', function() {
         const selectedId = this.value;
         const kit = kits.find(k => k.id === selectedId);
@@ -177,30 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openTransferModal = openTransferModal;
 });
 
-// Helper for Line Leader Dropdown
-function populateKitDropdown(selectedLine) {
-    const s = document.getElementById('kitSelect');
-    s.innerHTML = '<option value="">Select Kit</option>';
-    
-    let lineKits = [];
-    if (!selectedLine) {
-        // If no line selected, show all active kits (Safety fallback)
-        lineKits = kits.filter(k => k.status === 'Active');
-    } else {
-        lineKits = kits.filter(k => k.status === 'Active' && k.line === selectedLine);
-    }
-    
-    lineKits.forEach(k => {
-        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-        s.innerHTML += `<option value="${k.id}">${k.id} (Rem: ${rem} | ${k.createdDate})</option>`;
-    });
-
-    if (lineKits.length === 1) {
-        s.value = lineKits[0].id;
-        s.dispatchEvent(new Event('change')); 
-    }
-}
-
 // AUTO FILL CALCULATION LOGIC
 function updateCalculationDisplay() {
     const inp = parseInt(document.getElementById('inputUsed').value) || 0;
@@ -219,12 +222,12 @@ function updateCalculationDisplay() {
         helper.classList.remove('hidden');
         diffSpan.innerText = diff;
         if(diff < 0) { 
-            helper.classList.replace('bg-blue-50', 'bg-red-50');
-            helper.classList.replace('text-blue-700', 'text-red-700');
-            diffSpan.innerText = diff + " (Error!)";
+            helper.classList.replace('bg-blue-900/20', 'bg-red-900/20');
+            helper.classList.replace('text-blue-300', 'text-red-400');
+            diffSpan.innerText = diff + " (Mismatch)";
         } else {
-            helper.classList.replace('bg-red-50', 'bg-blue-50');
-            helper.classList.replace('text-red-700', 'text-blue-700');
+            helper.classList.replace('bg-red-900/20', 'bg-blue-900/20');
+            helper.classList.replace('text-red-400', 'text-blue-300');
         }
     } else {
         helper.classList.add('hidden');
@@ -246,14 +249,14 @@ function renderManagerLoginHistory(logs) {
     const list = document.getElementById('managerLoginList');
     list.innerHTML = '';
     if (logs.length === 0) {
-        list.innerHTML = '<div class="italic text-slate-400">No login history available.</div>';
+        list.innerHTML = '<div class="italic opacity-50">No login history available.</div>';
         return;
     }
     logs.forEach(log => {
         const item = document.createElement('div');
-        item.className = 'border-b border-purple-100 pb-1';
+        item.className = 'border-b border-purple-500/10 pb-1 flex justify-between';
         const date = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleString() : 'Just now';
-        item.innerText = `Logged in: ${date}`;
+        item.innerHTML = `<span>Login</span> <span class="opacity-70">${date}</span>`;
         list.appendChild(item);
     });
 }
@@ -269,6 +272,8 @@ function setupViewByRole() {
     if(addBtn) addBtn.classList.add('hidden');
     document.getElementById('managerLoginHistoryPanel').classList.add('hidden');
 
+    document.getElementById('entryDate').value = getLocalDateString();
+
     if (role === 'Data Incharge') {
         document.getElementById('kitManagementView').classList.remove('hidden');
         if(addBtn) addBtn.classList.remove('hidden');
@@ -278,9 +283,6 @@ function setupViewByRole() {
     } 
     else if (role === 'Line Leader') {
         document.getElementById('lineLeaderView').classList.remove('hidden');
-        // FIXED: Initial populate of kits so it's not empty
-        populateKitDropdown(""); 
-        document.getElementById('entryDate').value = getLocalDateString();
     } 
     else if (role === 'Manager') {
         document.getElementById('managerView').classList.remove('hidden');
@@ -309,7 +311,7 @@ function openTransferModal(kitId) {
 async function handleAddKit(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true; btn.innerText = "Creating...";
+    btn.disabled = true; btn.innerText = "Processing...";
 
     const newId = document.getElementById('kitIdInput').value.toUpperCase().trim();
     if(kits.some(k => k.id === newId)) { alert("Kit ID exists!"); btn.disabled=false; btn.innerText="Create Kit"; return; }
@@ -342,12 +344,11 @@ async function handleShiftEntry(e) {
     
     const submitBtn = document.querySelector('#shiftForm button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.innerText = "Checking...";
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validating...';
 
     const kit = kits.find(k => k.id === document.getElementById('kitSelect').value);
     if(!kit) { submitBtn.disabled = false; return; }
     
-    // BACK-DATING LOGIC
     const selectedDate = document.getElementById('entryDate').value || getLocalDateString();
 
     const pqcName = document.getElementById('pqcSelect').value; 
@@ -362,11 +363,11 @@ async function handleShiftEntry(e) {
         playSound('error'); 
         alert(`⚠️ QUANTITY MISMATCH!\nOutput cannot be greater than Input!`);
         submitBtn.disabled = false;
-        submitBtn.innerText = "Submit Entry";
+        submitBtn.innerText = "Commit Data Entry";
         return; 
     }
 
-    submitBtn.innerText = "Saving...";
+    submitBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Syncing...';
 
     const updatedUsed = (kit.usedQty || 0) + inputUsed;
     const updatedPacked = (kit.packedQty || 0) + packed;
@@ -376,7 +377,7 @@ async function handleShiftEntry(e) {
     const updatedRem = kit.totalQty - (updatedPacked + updatedRej);
 
     const logObj = {
-        date: selectedDate, // Using selected date
+        date: selectedDate, 
         line: document.getElementById('lineSelect').value,
         leader: document.getElementById('leaderName').value,
         pqc: pqcName, 
@@ -413,31 +414,21 @@ async function handleShiftEntry(e) {
 
         document.getElementById('resultModal').classList.remove('hidden');
 
-        // Reset inputs but keep date and line
-        const dateVal = document.getElementById('entryDate').value;
-        const lineVal = document.getElementById('lineSelect').value;
-        const leaderVal = document.getElementById('leaderName').value;
-        const pqcVal = document.getElementById('pqcSelect').value;
-
-        e.target.reset(); 
-        
-        // Restore values for speed
-        document.getElementById('entryDate').value = dateVal;
-        document.getElementById('lineSelect').value = lineVal;
-        document.getElementById('leaderName').value = leaderVal;
-        document.getElementById('pqcSelect').value = pqcVal;
-
+        // Reset
+        document.getElementById('inputUsed').value = "";
+        document.getElementById('outputQty').value = "";
+        document.getElementById('rejectionQty').value = "";
+        document.getElementById('semiQty').value = "";
+        document.getElementById('reworkQty').value = "";
+        document.getElementById('remarksInput').value = "";
         document.getElementById('calcHelper').classList.add('hidden'); 
-        document.getElementById('modelDisplay').value = "";
-        
-        // Refresh kit list if line was selected
-        if(lineVal) populateKitDropdown(lineVal);
+        document.getElementById('inputUsed').dispatchEvent(new Event('input'));
 
     } catch (err) {
         alert("Error saving: " + err.message);
     } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = "Submit Entry";
+        submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i> Commit Data Entry';
     }
 }
 
@@ -467,14 +458,20 @@ async function handleTransferKit(e) {
         createdDate: getLocalDateString(), createdBy: 'Transfer'
     };
     
+    // FIX: Removed undefined entries. Using 'SYSTEM' constant.
     const logObj = { 
         date: getLocalDateString(), 
         line: toLine, 
+        leader: "SYSTEM",
+        pqc: "TRANSFER",
         kitId: originalKit.id, 
         model: originalKit.model, 
+        input: 0,
         output: 0, 
         rejection: 0, 
-        remarks: `Transferred ${qty} to ${newId}. ${remarks}` 
+        semi: 0,
+        rework: 0,
+        remarks: `Transferred ${qty} pcs to ${newId}. Note: ${remarks}` 
     };
 
     await updateKitInFirestore(originalKit.id, { totalQty: newTotal, remainingQty: newRem });
@@ -485,7 +482,8 @@ async function handleTransferKit(e) {
     kits.push(newKit); productionLogs.push(logObj);
 
     document.getElementById('transferModal').classList.add('hidden');
-    renderSidebarKits(); showKitDetails(id);
+    renderSidebarKits(); 
+    showKitDetails(id);
 }
 
 async function closeKit(id) {
@@ -507,39 +505,96 @@ async function deleteKit(id) {
     await deleteKitFromFirestore(id);
     kits = kits.filter(k => k.id !== id);
     renderSidebarKits(); renderClosedKits();
-    document.getElementById('kitDetailCard').innerHTML = 'Deleted';
+    document.getElementById('kitDetailCard').innerHTML = '<div class="text-slate-500 py-10 text-center">Unit Deleted</div>';
 }
 
 // --- RENDERERS ---
+
 function renderSidebarKits() {
     const list = document.getElementById('kitList');
+    
+    // Skeleton Loading Effect
+    if(list.children.length === 0) list.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+
     const searchTerm = document.getElementById('kitSearch').value.toLowerCase();
     
-    list.innerHTML = '';
+    // UPDATED: Date Range Logic
+    const start = document.getElementById('sidebarDateStart').value;
+    const end = document.getElementById('sidebarDateEnd').value;
+    
+    const lineFilter = document.getElementById('sidebarLineFilter').value;
+
     const activeKits = kits.filter(k => {
-        const statusMatch = k.status === 'Active';
-        const searchMatch = k.id.toLowerCase().includes(searchTerm) || k.model.toLowerCase().includes(searchTerm);
-        return statusMatch && searchMatch;
+        const isStatusMatch = k.status === 'Active';
+        const isSearchMatch = k.id.toLowerCase().includes(searchTerm) || k.model.toLowerCase().includes(searchTerm);
+        
+        // Date Range Match
+        const isDateMatch = (!start || k.createdDate >= start) && (!end || k.createdDate <= end);
+        
+        const isLineMatch = !lineFilter || lineFilter === "All Lines" || k.line === lineFilter;
+        return isStatusMatch && isSearchMatch && isDateMatch && isLineMatch;
     });
 
-    if (activeKits.length === 0) { list.innerHTML = '<div class="text-slate-500 text-sm p-4">No active kits found.</div>'; return; }
+    // UPDATE ACTIVE COUNT BADGE
+    const countBadge = document.getElementById('activeCountBadge');
+    if(countBadge) countBadge.innerText = activeKits.length;
+
+    list.innerHTML = '';
+    
+    if (activeKits.length === 0) { 
+        list.innerHTML = '<div class="text-slate-500 text-xs p-4 text-center border border-dashed border-slate-700 rounded mt-4">No active units found.</div>'; 
+        return; 
+    }
 
     activeKits.forEach(kit => {
         const div = document.createElement('div');
+        
+        // Calculations
+        const safeRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
+        const remPercent = (safeRem / kit.totalQty) * 100;
+        const daysOld = getKitAge(kit.createdDate);
+        
+        // Classes & Styles
         const transferClass = kit.isTransferred ? 'is-transferred' : '';
         const badgeHTML = kit.isTransferred ? '<div class="transferred-badge">TRANSFERRED</div>' : '';
-        const safeRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
         
-        const daysOld = getKitAge(kit.createdDate);
-        let ageClass = 'age-new';
-        if(daysOld > 7) ageClass = 'age-med';
-        if(daysOld > 15) ageClass = 'age-old';
-        const ageBadge = `<span class="aging-badge ${ageClass}">${daysOld}d old</span>`;
+        // Dynamic Remaining Color
+        let remColorClass = 'text-dynamic-high';
+        if(remPercent < 50) remColorClass = 'text-dynamic-med';
+        if(remPercent < 20) remColorClass = 'text-dynamic-low';
 
-        div.className = `kit-item ${transferClass}`;
-        div.innerHTML = `${badgeHTML}
-            <div class="flex justify-between items-start pointer-events-none"><div><div class="font-bold text-sm text-slate-800">${kit.id} ${ageBadge}</div><div class="text-xs text-slate-500">${kit.model}</div><div class="text-[10px] text-slate-400 mt-1"><i class="far fa-calendar-alt"></i> ${kit.createdDate}</div></div><div class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">${kit.line}</div></div>
-            <div class="mt-2 flex justify-between text-xs text-slate-500 pointer-events-none"><span>Total: ${kit.totalQty}</span><span>Rem: <b class="text-slate-800">${safeRem}</b></span></div>`;
+        // New Arrival Glow (First 2 days)
+        const glowClass = daysOld <= 2 ? 'glow-new' : '';
+
+        // Quality Grade (Based on rejection rate)
+        const rejRate = kit.packedQty > 0 ? (kit.rejectionQty / (kit.packedQty + kit.rejectionQty)) * 100 : 0;
+        let gradeHTML = '<span class="grade-badge grade-A" data-tooltip="Excellent Quality">A</span>';
+        if(rejRate > 2) gradeHTML = '<span class="grade-badge grade-B" data-tooltip="Modreate Rejection">B</span>';
+        if(rejRate > 5) gradeHTML = '<span class="grade-badge grade-C" data-tooltip="High Rejection">C</span>';
+
+        // Line Avatar Logic (L1, L2...)
+        const lineShort = kit.line.replace('Line ', 'L').trim();
+
+        div.className = `kit-item ${transferClass} ${glowClass} group`;
+        div.innerHTML = `
+            ${badgeHTML}
+            ${gradeHTML}
+            <div class="flex items-start gap-3 mb-3 pointer-events-none">
+                <!-- Line Avatar -->
+                <div class="line-avatar">${lineShort}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm text-slate-200 tracking-wide truncate">${kit.id}</div>
+                    <div class="text-[10px] text-slate-400 font-mono truncate" title="${kit.model}">${kit.model}</div>
+                </div>
+            </div>
+            
+            <!-- Mini Stat Grid -->
+            <div class="grid grid-cols-3 gap-1 border-t border-white/5 pt-2 pointer-events-none">
+                <div class="mini-stat">Input <b class="text-slate-300">${kit.totalQty}</b></div>
+                <div class="mini-stat">Packed <b class="text-green-400">${kit.packedQty}</b></div>
+                <div class="mini-stat">Rem <b class="${remColorClass}">${safeRem}</b></div>
+            </div>
+        `;
         div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
     });
@@ -551,25 +606,63 @@ function showKitDetails(kitId) {
     const card = document.getElementById('kitDetailCard');
     const logs = productionLogs.filter(log => log.kitId === kit.id).reverse();
     
-    let logsHTML = '<div class="overflow-auto max-h-40 border border-slate-200 rounded mt-2"><table class="w-full text-xs text-left"><thead class="bg-slate-50"><tr><th class="p-2">Date</th><th class="p-2">Ldr</th><th class="p-2">PQC</th><th class="p-2">In</th><th class="p-2">Pk</th><th class="p-2">Rej</th><th class="p-2">Semi</th><th class="p-2">Rwck</th></tr></thead><tbody>';
-    logs.forEach(l => logsHTML += `<tr class="border-t border-slate-100"><td class="p-2">${l.date}</td><td class="p-2">${l.leader}</td><td class="p-2">${l.pqc||'-'}</td><td class="p-2">${l.input||0}</td><td class="p-2 text-green-600">${l.output||0}</td><td class="p-2 text-red-600">${l.rejection||0}</td><td class="p-2">${l.semi||0}</td><td class="p-2">${l.rework||0}</td></tr>`);
+    let logsHTML = '<div class="overflow-auto max-h-48 border border-white/5 rounded-lg mt-4 custom-scrollbar"><table class="w-full text-xs text-left text-slate-300"><thead class="bg-slate-900 sticky top-0"><tr><th class="p-2">Date</th><th class="p-2">Ldr</th><th class="p-2">PQC</th><th class="p-2">In</th><th class="p-2">Pk</th><th class="p-2">Rej</th><th class="p-2">Semi</th><th class="p-2">Rwck</th></tr></thead><tbody class="divide-y divide-white/5 font-mono">';
+    logs.forEach(l => logsHTML += `<tr><td class="p-2">${l.date}</td><td class="p-2">${l.leader}</td><td class="p-2">${l.pqc||'-'}</td><td class="p-2">${l.input||0}</td><td class="p-2 text-green-400">${l.output||0}</td><td class="p-2 text-red-400">${l.rejection||0}</td><td class="p-2">${l.semi||0}</td><td class="p-2">${l.rework||0}</td></tr>`);
     logsHTML += '</tbody></table></div>';
 
     const isCompleted = (kit.packedQty + kit.rejectionQty) === kit.totalQty;
     let actionsHTML = '';
     if(currentUserRole === 'Data Incharge') {
         if(kit.status === 'Active') {
-            actionsHTML = `<div class="mt-4 flex gap-2 border-t pt-4"><button onclick="openTransferModal('${kit.id}')" class="flex-1 bg-orange-500 text-white py-2 rounded text-sm">Transfer</button>`;
-            actionsHTML += isCompleted ? `<button onclick="closeKit('${kit.id}')" class="flex-1 bg-green-600 text-white py-2 rounded text-sm">Close</button>` : `<button disabled class="flex-1 bg-gray-300 text-gray-500 py-2 rounded text-sm">Close</button>`;
-            actionsHTML += `<button onclick="deleteKit('${kit.id}')" class="px-3 bg-slate-800 text-white rounded"><i class="fas fa-trash"></i></button></div>`;
+            actionsHTML = `<div class="mt-4 flex gap-2 border-t border-white/5 pt-4"><button onclick="openTransferModal('${kit.id}')" class="flex-1 bg-orange-600 hover:bg-orange-500 text-white py-2 rounded text-xs font-bold transition">Transfer Unit</button>`;
+            actionsHTML += isCompleted ? `<button onclick="closeKit('${kit.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-xs font-bold transition">Close Unit</button>` : `<button disabled class="flex-1 bg-slate-800 text-slate-600 border border-slate-700 py-2 rounded text-xs font-bold cursor-not-allowed">Close Locked</button>`;
+            actionsHTML += `<button onclick="deleteKit('${kit.id}')" class="px-3 bg-red-900/30 text-red-400 border border-red-500/30 hover:bg-red-900/50 rounded transition"><i class="fas fa-trash"></i></button></div>`;
         } else {
-            actionsHTML = `<div class="mt-4 border-t pt-4 flex gap-2"><button onclick="reopenKit('${kit.id}')" class="flex-1 bg-blue-600 text-white py-2 rounded text-sm">Reopen</button><button onclick="deleteKit('${kit.id}')" class="px-3 bg-slate-800 text-white rounded"><i class="fas fa-trash"></i></button></div>`;
+            actionsHTML = `<div class="mt-4 border-t border-white/5 pt-4 flex gap-2"><button onclick="reopenKit('${kit.id}')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-xs font-bold">Reactivate Unit</button><button onclick="deleteKit('${kit.id}')" class="px-3 bg-red-900/30 text-red-400 border border-red-500/30 rounded"><i class="fas fa-trash"></i></button></div>`;
         }
     }
     
     const displayRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
-    card.innerHTML = `<div class="flex justify-between items-center mb-4"><div><h3 class="text-2xl font-bold">${kit.id}</h3><p class="text-slate-500 text-sm">${kit.model}</p><p class="text-xs text-slate-400">Issued: ${kit.createdDate}</p></div><div class="text-right"><span class="bg-slate-800 text-white px-2 py-1 rounded text-xs">${kit.line}</span></div></div>
-    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4 text-center"><div class="bg-slate-50 p-2 border"><p class="text-[10px]">IN</p><b>${kit.totalQty}</b></div><div class="bg-green-50 p-2 border"><p class="text-[10px]">PK</p><b>${kit.packedQty}</b></div><div class="bg-red-50 p-2 border"><p class="text-[10px]">RJ</p><b>${kit.rejectionQty}</b></div><div class="bg-orange-50 p-2 border"><p class="text-[10px]">SF</p><b>${kit.semiQty}</b></div><div class="bg-purple-50 p-2 border"><p class="text-[10px]">RW</p><b>${kit.reworkQty}</b></div><div class="bg-blue-50 p-2 border"><p class="text-[10px]">REM</p><b>${displayRem}</b></div></div>
+    
+    // PROGRESS BAR
+    const progress = Math.min(((kit.packedQty + kit.rejectionQty) / kit.totalQty) * 100, 100);
+    const progressColor = progress === 100 ? 'bg-emerald-500' : 'bg-blue-500';
+
+    card.innerHTML = `
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h3 class="text-3xl font-bold text-white tracking-tight">${kit.id}</h3>
+                <span class="bg-slate-800 text-cyan-400 px-2 py-1 rounded text-xs font-mono border border-cyan-500/30">${kit.line}</span>
+            </div>
+            <p class="text-slate-400 text-sm mt-1 font-mono">${kit.model}</p>
+        </div>
+        <div class="text-right">
+             <span class="text-[10px] text-slate-500 uppercase block">Current Status</span>
+             <span class="text-xs ${kit.status==='Active'?'text-green-400':'text-red-400'} font-bold uppercase tracking-wider">${kit.status}</span>
+        </div>
+    </div>
+    
+    <!-- NEW: Creation Manifest (Initial Details) -->
+    <div class="grid grid-cols-4 gap-2 mb-4 p-3 bg-white/5 rounded-lg border border-white/5">
+        <div><p class="text-[10px] text-slate-500">ISSUED DATE</p><p class="text-xs text-white font-mono">${kit.createdDate}</p></div>
+        <div><p class="text-[10px] text-slate-500">INITIAL QTY</p><p class="text-xs text-white font-mono">${kit.totalQty}</p></div>
+        <div><p class="text-[10px] text-slate-500">ISSUED LINE</p><p class="text-xs text-white font-mono">${kit.line}</p></div>
+        <div><p class="text-[10px] text-slate-500">ISSUED BY</p><p class="text-xs text-white font-mono">${kit.createdBy || 'System'}</p></div>
+    </div>
+
+    <div class="w-full bg-slate-800 rounded-full h-1.5 mb-6 overflow-hidden">
+        <div class="${progressColor} h-1.5 rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+    </div>
+
+    <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4 text-center">
+        <div class="bg-slate-800/50 p-2 rounded border border-white/5"><p class="text-[10px] text-slate-500 uppercase">Input</p><b class="text-white text-lg">${kit.totalQty}</b></div>
+        <div class="bg-green-900/20 p-2 rounded border border-green-500/20"><p class="text-[10px] text-green-400 uppercase">Packed</p><b class="text-green-400 text-lg">${kit.packedQty}</b></div>
+        <div class="bg-red-900/20 p-2 rounded border border-red-500/20"><p class="text-[10px] text-red-400 uppercase">Reject</p><b class="text-red-400 text-lg">${kit.rejectionQty}</b></div>
+        <div class="bg-orange-900/20 p-2 rounded border border-orange-500/20"><p class="text-[10px] text-orange-400 uppercase">Semi</p><b class="text-orange-400 text-lg">${kit.semiQty}</b></div>
+        <div class="bg-purple-900/20 p-2 rounded border border-purple-500/20"><p class="text-[10px] text-purple-400 uppercase">Rework</p><b class="text-purple-400 text-lg">${kit.reworkQty}</b></div>
+        <div class="bg-blue-900/20 p-2 rounded border border-blue-500/20"><p class="text-[10px] text-blue-400 uppercase">Rem</p><b class="text-blue-400 text-lg">${displayRem}</b></div>
+    </div>
     ${logsHTML}${actionsHTML}`;
 }
 
@@ -577,20 +670,135 @@ function renderClosedKits() {
     const list = document.getElementById('closedKitList');
     const searchTerm = document.getElementById('closedKitSearch').value.toLowerCase();
     
-    list.innerHTML = '';
+    // UPDATED: Date Range Logic
+    const start = document.getElementById('closedDateStart').value;
+    const end = document.getElementById('closedDateEnd').value;
+    
+    const lineFilter = document.getElementById('closedLineFilter').value;
+
     const closed = kits.filter(k => {
-        const statusMatch = k.status === 'Closed';
-        const searchMatch = k.id.toLowerCase().includes(searchTerm);
-        return statusMatch && searchMatch;
+        const isStatusMatch = k.status === 'Closed';
+        const isSearchMatch = k.id.toLowerCase().includes(searchTerm);
+        
+        // Date Range Match
+        const isDateMatch = (!start || k.createdDate >= start) && (!end || k.createdDate <= end);
+        
+        const isLineMatch = !lineFilter || lineFilter === "All Lines" || k.line === lineFilter;
+        return isStatusMatch && isSearchMatch && isDateMatch && isLineMatch;
     });
 
-    if(closed.length === 0) { list.innerHTML = '<p class="text-sm text-slate-500">No closed kits.</p>'; return; }
+    // UPDATE CLOSED COUNT BADGE
+    const badge = document.getElementById('closedCountBadge');
+    if(badge) badge.innerText = closed.length;
+
+    list.innerHTML = '';
+    
+    if(closed.length === 0) { list.innerHTML = '<p class="text-xs text-slate-500 italic p-2">No archived units match.</p>'; return; }
     
     closed.forEach(kit => {
         const div = document.createElement('div');
-        div.className = 'flex justify-between p-3 bg-slate-50 border rounded mb-2 cursor-pointer';
-        div.innerHTML = `<div><div class="font-bold text-sm">${kit.id}</div><div class="text-[10px] text-slate-400">${kit.createdDate}</div></div><div class="text-right"><div class="text-xs text-red-500 font-bold">CLOSED</div><div class="text-[10px] bg-slate-100 rounded px-1">${kit.line}</div></div>`;
+        div.className = 'flex justify-between p-3 bg-slate-800/50 border border-slate-700 rounded mb-2 cursor-pointer hover:border-slate-500 transition';
+        div.innerHTML = `<div><div class="font-bold text-sm text-slate-300">${kit.id}</div><div class="text-[10px] text-slate-500 font-mono">${kit.line} | ${kit.createdDate}</div></div><div class="text-[10px] bg-red-900/30 text-red-400 px-2 py-1 rounded border border-red-500/30 h-fit">CLOSED</div>`;
         div.onclick = function() { showKitDetails(kit.id); };
         list.appendChild(div);
     });
+}
+
+function updateManagerDashboard() {
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+    const fLine = document.getElementById('filterLine').value;
+    
+    // Filter Logs
+    const logs = productionLogs.filter(l => {
+        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
+        const lineMatch = fLine === 'All' || l.line === fLine;
+        return dateMatch && lineMatch;
+    });
+    
+    // Stats Calc
+    let inp=0, pkd=0, rej=0, semi=0;
+    logs.forEach(l => { inp+=l.input||0; pkd+=l.output||0; rej+=l.rejection||0; semi+=l.semi||0; });
+    
+    // DOM Updates
+    document.getElementById('statInput').innerText = inp;
+    document.getElementById('statPacked').innerText = pkd;
+    document.getElementById('statRejection').innerText = rej;
+    document.getElementById('statSemi').innerText = semi;
+    
+    // NEW CARDS CALCULATION
+    const activeKitsFiltered = kits.filter(k => k.status === 'Active' && (fLine === 'All' || k.line === fLine));
+    
+    // Total Pending Rework (Sum of reworkQty from active kits)
+    const totalReworkPending = activeKitsFiltered.reduce((sum, k) => sum + (k.reworkQty || 0), 0);
+    document.getElementById('statReworkPending').innerText = totalReworkPending;
+
+    // Total Remaining Qty (Sum of remainingQty from active kits)
+    const totalRemaining = activeKitsFiltered.reduce((sum, k) => sum + (k.remainingQty || 0), 0);
+    document.getElementById('statKitRemaining').innerText = totalRemaining;
+
+    // Table Render
+    const tbody = document.getElementById('reportTableBody'); tbody.innerHTML = '';
+    if(logs.length===0) tbody.innerHTML = '<tr><td colspan="11" class="text-center p-4 opacity-50">No telemetry data found.</td></tr>';
+    
+    logs.forEach(l => {
+        const k = kits.find(kt => kt.id === l.kitId);
+        const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
+        
+        const efficiency = l.input > 0 ? (l.output / l.input) * 100 : 0;
+        let rowClass = '';
+        if(efficiency > 95) rowClass = 'row-excellent';
+        else if(efficiency < 80 || (l.rejection > l.output * 0.1)) rowClass = 'row-poor';
+
+        tbody.innerHTML += `<tr class="${rowClass} hover:bg-slate-800 transition">
+            <td class="px-4 py-2">${l.date}</td>
+            <td class="px-4">${l.line}</td>
+            <td class="px-4">${l.pqc || '-'}</td> 
+            <td class="px-4 font-bold text-white">${l.kitId}</td>
+            <td class="px-4">${l.model}</td>
+            <td class="px-4 text-right">${l.input||0}</td>
+            <td class="px-4 text-right font-bold text-green-400">${l.output||0}</td>
+            <td class="px-4 text-right text-red-400">${l.rejection||0}</td>
+            <td class="px-4 text-right text-orange-400">${l.semi||0}</td>
+            <td class="px-4 text-right text-purple-400">${l.rework||0}</td>
+            <td class="px-4 text-right text-blue-400 font-bold">${rem}</td>
+        </tr>`;
+    });
+}
+
+function exportClosedKits() {
+    const closed = kits.filter(k => k.status === 'Closed');
+    if(closed.length === 0) { alert("No data"); return; }
+    let csv = "Kit ID,Model,Line,Date,Input,Packed,Reject,SemiFG,Rework,Remain\n";
+    closed.forEach(k => { 
+        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+        csv += `${k.id},${k.model},${k.line},${k.createdDate},${k.totalQty},${k.packedQty},${k.rejectionQty},${k.semiQty||0},${k.reworkQty||0},${rem}\n`; 
+    });
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = "Closed_Kits_Archive.csv";
+    link.click();
+}
+
+function exportManagerData() {
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+    const fLine = document.getElementById('filterLine').value;
+    const logs = productionLogs.filter(l => {
+        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
+        const lineMatch = fLine === 'All' || l.line === fLine;
+        return dateMatch && lineMatch;
+    });
+
+    if(logs.length === 0) { alert("No logs to export."); return; }
+    let csv = "Date,Line,Leader,PQC,Kit ID,Model,Input Used,Packed,Rejection,Semi FG,Rework,Rem Kit,Remarks\n";
+    logs.forEach(l => {
+        const k = kits.find(kt => kt.id === l.kitId);
+        const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : 0;
+        csv += `${l.date},${l.line},${l.leader},${l.pqc||'-'},${l.kitId},${l.model},${l.input||0},${l.output||0},${l.rejection||0},${l.semi||0},${l.rework||0},${rem},${l.remarks||''}\n`;
+    });
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = "Production_Logs_Full.csv";
+    link.click();
 }
