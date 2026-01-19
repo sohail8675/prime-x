@@ -1,6 +1,6 @@
 /* 
-    PRIME X SYSTEM - PRO EDITION v3.1
-    Preserved Logic + Date Range & Creation Manifest
+    PRIME X SYSTEM - PRO EDITION v3.2
+    Mobile Friendly + Date Ranges + Creation Manifest
 */
 
 // --- IMPORTS ---
@@ -143,13 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // FILTERS
     document.getElementById('sidebarFilterBtn').addEventListener('click', renderSidebarKits);
     document.getElementById('kitSearch').addEventListener('keyup', renderSidebarKits); 
-    // NEW: Date Listeners
     document.getElementById('sidebarDateStart').addEventListener('change', renderSidebarKits);
     document.getElementById('sidebarDateEnd').addEventListener('change', renderSidebarKits);
     
     document.getElementById('closedFilterBtn').addEventListener('click', renderClosedKits);
     document.getElementById('closedKitSearch').addEventListener('keyup', renderClosedKits);
-    // NEW: Closed Date Listeners
     document.getElementById('closedDateStart').addEventListener('change', renderClosedKits);
     document.getElementById('closedDateEnd').addEventListener('change', renderClosedKits);
 
