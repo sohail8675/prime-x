@@ -8,6 +8,15 @@ let kits = [];
 let productionLogs = [];
 let currentUserRole = '';
 let currentView = 'loginSection';
+// NEW HELPER: Checks if kit is > 3 days old
+function isKitPending(dateString) {
+    if(!dateString) return false;
+    const created = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today - created);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays > 3; 
+}
 
 // HELPER
 function getLocalDateString() {
@@ -52,6 +61,7 @@ window.switchView = function(viewId) {
     }
     currentView = viewId;
     if(viewId === 'activeUnitsView') renderSidebarKits();
+    if(viewId === 'pendingUnitsView') renderPendingKits();
     if(viewId === 'archivedUnitsView') renderClosedKits();
     if(viewId === 'dashboardView' && (currentUserRole.includes('Manager') || currentUserRole.includes('Data'))) updateManagerDashboard();
 }
@@ -93,6 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             btn.disabled = false; btn.innerText = "LOG IN";
         }
+       // --- LISTENERS FOR PENDING KITS FILTER ---
+    ['pendingDateStart', 'pendingDateEnd', 'pendingLineFilter', 'pendingKitSearch'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.addEventListener(id.includes('Search') ? 'keyup' : 'change', renderPendingKits);
+        }
+    });
     });
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -162,13 +179,13 @@ function renderSidebarKits() {
     const end = document.getElementById('sidebarDateEnd').value;
     const line = document.getElementById('sidebarLineFilter').value;
 
-    const filtered = kits.filter(k => 
-        k.status === 'Active' && 
-        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
-        (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-        (!line || line === "All Lines" || k.line === line)
-    );
-
+   const filtered = kits.filter(k => 
+    k.status === 'Active' && 
+    !isKitPending(k.createdDate) && // <--- YE LINE MAGIC KAREGI
+    (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+    (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
+    (!line || line === "All Lines" || k.line === line)
+);
     list.innerHTML = '';
     if(!filtered.length) list.innerHTML = '<div class="text-slate-500 text-center text-xs p-4">No units found.</div>';
 
@@ -205,32 +222,86 @@ function renderSidebarKits() {
 function openKitAction(kit) {
     const container = document.getElementById('dynamicDetailsContainer');
     container.innerHTML = '';
+
+    let element; 
+
+    // 1. Template Load karo
     if(currentUserRole === 'Manager' || currentUserRole === 'Data Incharge') {
         const tmpl = document.getElementById('kitDetailTemplate').cloneNode(true);
         tmpl.classList.remove('hidden');
-        renderManagerDetailCard(kit, tmpl.firstElementChild);
-        container.appendChild(tmpl.firstElementChild);
+        element = tmpl.firstElementChild;
+        renderManagerDetailCard(kit, element);
     } else {
         const tmpl = document.getElementById('lineLeaderFormTemplate').cloneNode(true);
         tmpl.classList.remove('hidden');
-        setupLeaderForm(kit, tmpl.firstElementChild);
-        container.appendChild(tmpl.firstElementChild);
+        element = tmpl.firstElementChild;
+        setupLeaderForm(kit, element);
     }
+
+    // ----------------------------------------------------
+    // 🎨 PAINT JOB (COLOR LOGIC)
+    // ----------------------------------------------------
+    
+    // Step A: Purani halki/transparent classes hatao
+    element.classList.remove('bg-dark/60', 'bg-dark/40', 'backdrop-blur-xl', 'border-white/10');
+
+    // Step B: Special Treatment Check karo
+    if(kit.type === 'Final Unit') {
+        // ✨ FINAL UNIT = SPECIAL GOLD LOOK
+        // Solid Dark Background + Gold Border + Gold Glow
+        element.className += " bg-[#0f172a] border-2 border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.15)] rounded-2xl p-6";
+    } else {
+        // ⚙️ NORMAL PART = SOLID DARK LOOK
+        // Solid Dark Background + Standard Border (Koi transparency nahi)
+        element.className += " bg-[#0f172a] border border-slate-700 shadow-2xl rounded-2xl p-6";
+    }
+    // ----------------------------------------------------
+
+    container.appendChild(element);
     switchView('detailsView');
 }
 
-// --- FIXED MANAGER CARD (With History Table) ---
 function renderManagerDetailCard(kit, card) {
     const logs = productionLogs.filter(l => l.kitId === kit.id).reverse();
     const totalDone = kit.packedQty + kit.rejectionQty;
     const progress = Math.min((totalDone/kit.totalQty)*100, 100);
     const currentRem = kit.totalQty - totalDone;
     
+    // --- 🟢 NEW LOGIC: DATE CALCULATION START ---
+    let dateDisplayHtml = '';
+    
+    if (kit.status === 'Closed') {
+        // Agar Closed hai, to Duration calculate karo
+        // Note: Agar purani kit mein closedDate nahi hai to hum aaj ki date maan lenge display ke liye
+        const start = new Date(kit.createdDate);
+        const end = kit.closedDate ? new Date(kit.closedDate) : new Date(); 
+        
+        // Time Difference nikalna
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        const totalDays = diffDays === 0 ? 1 : diffDays; // Kam se kam 1 din dikhaye
+
+        // Ye hai wo Special Display (Start -> Days -> End)
+        dateDisplayHtml = `
+            <div class="flex items-center gap-2 text-[10px] bg-slate-900/80 p-1.5 rounded-lg border border-white/10 mt-1">
+                <span class="text-slate-500">${kit.createdDate}</span>
+                <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
+                <span class="text-yellow-400 font-bold bg-yellow-900/20 px-1 rounded border border-yellow-500/30">${totalDays} Days</span>
+                <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
+                <span class="text-slate-500">${kit.closedDate || 'Today'}</span>
+            </div>
+        `;
+    } else {
+        // Agar Active/Pending hai to Normal purana wala dikhao
+        dateDisplayHtml = `<span class="text-[10px] text-slate-500"><i class="far fa-calendar-alt ml-1"></i> ${kit.createdDate}</span>`;
+    }
+    // --- 🔴 LOGIC END ---
+
     const typeBadge = kit.type === 'Final Unit' 
         ? '<span class="bg-green-900/50 text-green-400 px-2 rounded text-[10px] border border-green-500/30">FINAL</span>' 
         : '<span class="bg-yellow-900/50 text-yellow-400 px-2 rounded text-[10px] border border-yellow-500/30">PART</span>';
     
-    // Close Button Logic (Mark as Completed)
+    // Close Button Logic
     const isComplete = totalDone >= kit.totalQty;
     let closeBtn = '';
     
@@ -242,12 +313,10 @@ function renderManagerDetailCard(kit, card) {
             : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`;
     }
 
-    // Transfer Button Logic (Closed hai to gayab)
     const transferBtn = kit.status === 'Closed' 
         ? '' 
         : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
 
-    // Table Generation (Full Forms)
     let table = `
     <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
         <thead class="bg-slate-900 sticky top-0">
@@ -277,17 +346,20 @@ function renderManagerDetailCard(kit, card) {
     });
     table += '</tbody></table>';
 
-    // HTML Structure
+    // HTML Structure Update (New Date Display Add kiya hai yahan)
     card.innerHTML = `
         <div class="flex justify-between items-start mb-4">
             <div>
                 <h3 class="text-3xl font-bold text-white tracking-tight">${kit.id}</h3>
-                <div class="flex flex-wrap items-center gap-2 mt-1">
-                    <span class="text-xs font-mono text-slate-400 bg-slate-800 px-1 rounded">${kit.model}</span>
-                    <span class="text-xs font-bold text-cyan-400 bg-cyan-900/20 px-2 rounded border border-cyan-500/30">
-                        <i class="fas fa-industry mr-1"></i> ${kit.line}
-                    </span>
-                    <span class="text-[10px] text-slate-500"><i class="far fa-calendar-alt ml-1"></i> ${kit.createdDate}</span>
+                <div class="flex flex-col gap-1 mt-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-mono text-slate-400 bg-slate-800 px-1 rounded">${kit.model}</span>
+                        <span class="text-xs font-bold text-cyan-400 bg-cyan-900/20 px-2 rounded border border-cyan-500/30">
+                            <i class="fas fa-industry mr-1"></i> ${kit.line}
+                        </span>
+                    </div>
+                    <!-- YAHAN AAYEGA SPECIAL DATE DISPLAY -->
+                    ${dateDisplayHtml}
                 </div>
             </div>
             <div class="text-right space-y-1">
@@ -318,7 +390,6 @@ function renderManagerDetailCard(kit, card) {
             <span class="text-2xl font-mono font-bold text-cyan-400">${currentRem}</span>
         </div>
         
-        <!-- BUTTONS RESTORED HERE -->
         <div class="flex gap-2 mb-4">
              ${transferBtn}
              <button onclick="shareKitWhatsApp('${kit.id}')" class="flex-1 bg-green-900/20 text-green-400 py-2 rounded text-xs border border-green-500/30 hover:bg-green-600 hover:text-white transition font-bold flex items-center justify-center gap-2">
@@ -335,6 +406,7 @@ function renderManagerDetailCard(kit, card) {
         </div>
     `;
 }
+
 
 function setupLeaderForm(kit, formContainer) {
     const form = formContainer.querySelector('form');
@@ -530,8 +602,16 @@ async function handleTransferKit(e) {
 window.exportManagerData = exportManagerData;
 window.exportClosedKits = exportClosedKits;
 window.initTransfer = function(id) { document.getElementById('transferKitId').value=id; document.getElementById('transferFrom').value=kits.find(k=>k.id===id).line; document.getElementById('transferModal').classList.remove('hidden'); }
-window.closeKitAction = async function(id) { if(confirm('Archive?')) { await updateDoc(doc(db,"kits",id), {status:'Closed'}); location.reload(); } }
-
+window.closeKitAction = async function(id) { 
+    if(confirm('Archive this Kit?')) { 
+        // Ab hum status ke saath-saath AAJ KI DATE bhi save karenge
+        await updateDoc(doc(db,"kits",id), {
+            status:'Closed',
+            closedDate: getLocalDateString() // <--- YE ZAROORI HAI
+        }); 
+        location.reload(); 
+    } 
+}
 // --- FIXED EXPORT FUNCTION ---
 function exportManagerData() {
     let csv = "Date,Line,Kit,Model,Input,Output,Semi,Rework,Rejection\n" + 
@@ -578,3 +658,57 @@ window.shareKitWhatsApp = function(id) {
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
 }
+// --- NEW UPDATED FUNCTION WITH DATE & LINE FILTER ---
+// --- UPDATED PENDING KITS FUNCTION (Clean Look) ---
+function renderPendingKits() {
+    const list = document.getElementById('pendingKitList');
+    
+    // Inputs
+    const term = document.getElementById('pendingKitSearch').value.toLowerCase();
+    const start = document.getElementById('pendingDateStart').value;
+    const end = document.getElementById('pendingDateEnd').value;
+    const line = document.getElementById('pendingLineFilter').value;
+
+    // Filter Logic
+    const filtered = kits.filter(k => 
+        k.status === 'Active' && 
+        isKitPending(k.createdDate) && 
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
+        (!line || line === "All Lines" || k.line === line)
+    );
+
+    list.innerHTML = '';
+    if(!filtered.length) list.innerHTML = '<div class="text-slate-500 text-center text-xs p-4">No pending records found.</div>';
+
+    filtered.forEach(k => {
+        const div = document.createElement('div');
+        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+        const lineShort = k.line.replace('Line ','L').trim();
+        
+        // CSS wahi hai (Orange Border wala)
+        div.className = `kit-item group border-l-2 border-orange-500 ${k.isTransferred?'is-transferred':''}`;
+        
+        // ✨ CHANGE IS HERE: "Overdue" hata diya, "Model" wapas laga diya
+        div.innerHTML = `
+            <div class="flex items-center gap-3 mb-2">
+                <div class="line-avatar bg-orange-900/20 text-orange-400 border-orange-500/30">${lineShort}</div>
+                <div>
+                    <div class="font-bold text-sm text-slate-200">${k.id}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">${k.model}</div> 
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-1 border-t border-white/5 pt-2">
+                <div class="mini-stat">Date <b>${k.createdDate}</b></div>
+                <div class="mini-stat">Pk <b class="text-green-400">${k.packedQty}</b></div>
+                <div class="mini-stat">Rem <b class="text-cyan-400">${rem}</b></div>
+            </div>
+        `;
+        div.onclick = () => openKitAction(k);
+        list.appendChild(div);
+    });
+}
+
+// Enable Search for Pending
+const pSearch = document.getElementById('pendingKitSearch');
+if(pSearch) pSearch.addEventListener('keyup', renderPendingKits);

@@ -27,7 +27,6 @@
     background: rgba(251, 191, 36, 0.1) !important; /* Halki Yellow Background */
     box-shadow: 0 0 15px rgba(251, 191, 36, 0.2); /* Glow Effect */
 }
-
 /* Final Unit ka Text bhi Gold kar denge */
 .kit-item.is-final .font-bold {
     color: #fbbf24 !important;

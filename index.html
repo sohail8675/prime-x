@@ -26,19 +26,42 @@
 
   <div id="app" class="h-screen flex flex-col relative overflow-hidden">
     
-    <!-- HEADER -->
+        <!-- HEADER (UPDATED FOR MOBILE VISIBILITY) -->
     <header class="bg-glass backdrop-blur-md border-b border-white/10 hidden z-40 shrink-0" id="header">
       <div class="w-full px-4 py-3 flex justify-between items-center">
-        <div class="flex items-center gap-4">
-            <button id="menuBtn" class="text-white text-xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded flex items-center justify-center"><i class="fas fa-cube text-white text-sm"></i></div>
-                <h1 class="text-lg font-bold tracking-wider text-white hidden md:block">PRIME <span class="text-blue-400">X</span></h1>
+        
+        <!-- LEFT SIDE: MENU & LOGO -->
+        <div class="flex items-center gap-3">
+            
+            <!-- 1. BIG MENU BUTTON WITH GLOW -->
+            <button id="menuBtn" class="relative group bg-slate-800/80 border border-blue-500/30 text-blue-400 text-2xl p-3 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:bg-blue-600 hover:text-white hover:shadow-[0_0_20px_rgba(59,130,246,0.6)] transition-all active:scale-95">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <!-- 2. ENHANCED LOGO DISPLAY -->
+            <div class="flex items-center gap-2 pl-1">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-400 rounded-lg flex items-center justify-center shadow-lg transform rotate-3 border border-white/10">
+                    <i class="fas fa-cube text-white text-lg drop-shadow-md"></i>
+                </div>
+                <!-- Phone pe bhi naam dikhega ab, thoda stylish -->
+                <h1 class="text-xl font-bold tracking-wider text-white leading-none">
+                    PRIME X<span class="text-cyan-400 block text-[10px] font-mono tracking-[0.3em] uppercase">operating System</span>
+                </h1>
             </div>
         </div>
+
+        <!-- RIGHT SIDE: ROLE & LOGOUT -->
         <div class="flex items-center gap-4">
-            <span id="currentRoleDisplay" class="text-cyan-400 font-bold font-mono text-xs glow-text"></span>
-            <button id="logoutBtn" class="text-slate-400 hover:text-red-400 transition"><i class="fas fa-power-off"></i></button>
+            <div class="text-right hidden md:block">
+                <span class="text-[10px] text-slate-500 block uppercase">Logged in as</span>
+                <span id="currentRoleDisplay" class="text-cyan-400 font-bold font-mono text-xs glow-text"></span>
+            </div>
+            <!-- Mobile pe sirf Role dikhega -->
+            <span id="currentRoleDisplayMobile" class="md:hidden text-cyan-400 font-bold font-mono text-xs bg-slate-800 px-2 py-1 rounded border border-white/10"></span>
+
+            <button id="logoutBtn" class="bg-slate-800 text-red-400 hover:bg-red-500 hover:text-white p-3 rounded-xl transition border border-white/10 shadow-lg">
+                <i class="fas fa-power-off text-lg"></i>
+            </button>
         </div>
       </div>
     </header>
@@ -55,6 +78,9 @@
             </button>
             <button onclick="switchView('activeUnitsView')" class="menu-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition flex items-center gap-3">
                 <i class="fas fa-microchip w-5"></i> Active Kits
+            </button>
+            <button onclick="switchView('pendingUnitsView')" class="menu-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition flex items-center gap-3">
+            <i class="fas fa-history w-5 text-orange-400"></i> Pending Kits
             </button>
             <button onclick="switchView('archivedUnitsView')" class="menu-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition flex items-center gap-3">
                 <i class="fas fa-box-archive w-5"></i> Closed Kits
@@ -102,8 +128,19 @@
                     <div class="stat-card bg-slate-800/50 p-4 rounded-xl border-t-2 border-cyan-500"><p class="text-[10px] uppercase font-bold text-slate-400">Kit Remaining</p><div id="statKitRemaining" class="text-xl font-mono font-bold text-cyan-400">0</div></div>
                 </div>
                 <div class="bg-dark/60 backdrop-blur-xl border border-white/10 rounded-2xl p-4 overflow-hidden">
-                    <h3 class="text-white font-bold mb-4">Production Logs</h3>
-                    <div class="overflow-x-auto rounded border border-white/5">
+                   <div class="flex justify-between items-end mb-4">
+    <h3 class="text-white font-bold">Production Logs</h3>
+    <!-- MOBILE SCROLL INDICATOR (Only visible on Phone) -->
+    <div class="md:hidden flex items-center gap-1 animate-pulse text-cyan-400">
+        <span class="text-[10px] font-bold uppercase tracking-widest">Swipe</span>
+        <i class="fas fa-arrow-right-long"></i>
+    </div>
+</div>
+
+<!-- Table Container with Scroll Hint -->
+<div class="overflow-x-auto rounded border border-white/5 relative">
+    <!-- Fading Edge Effect for Visual Hint -->
+    <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none md:hidden"></div>
                         <table class="min-w-full text-sm text-left text-slate-300 whitespace-nowrap">
               <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-500">
     <tr>
@@ -160,6 +197,36 @@
                 </div>
                 <div id="kitList" class="space-y-2 pb-20"></div>
             </div>
+            <!-- PENDING UNITS SECTION START -->
+<div id="pendingUnitsView" class="view-section hidden max-w-3xl mx-auto space-y-4">
+    <div class="flex justify-between items-end mb-4 px-2">
+        <div>
+            <h2 class="text-2xl font-bold text-white tracking-wide">Pending Kits</h2>
+            <p class="text-[10px] text-orange-400 font-mono uppercase tracking-widest">Older than 3 Days</p>
+        </div>
+    </div>
+    <!-- NEW FILTER BOX FOR PENDING KITS -->
+<div class="bg-darker/80 backdrop-blur-md border border-white/10 p-3 rounded-xl mb-4 shadow-xl">
+    <!-- Row 1: Dates & Line Filter -->
+    <div class="grid grid-cols-3 gap-2 mb-2">
+        <input type="date" id="pendingDateStart" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500 text-center">
+        <input type="date" id="pendingDateEnd" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500 text-center">
+        <select id="pendingLineFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500">
+            <option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+        </select>
+    </div>
+    <!-- Row 2: Search Bar -->
+    <div class="flex gap-2">
+        <div class="relative flex-1">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+            <input type="text" id="pendingKitSearch" placeholder="Search Pending ID..." class="w-full bg-slate-800 border border-white/10 text-white text-xs rounded pl-8 pr-2 py-2 outline-none focus:border-orange-500 transition">
+        </div>
+        <button onclick="renderPendingKits()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-3 rounded text-xs transition border border-white/5"><i class="fas fa-filter"></i></button>
+    </div>
+</div>
+    <div id="pendingKitList" class="space-y-2 pb-20"></div>
+</div>
+<!-- PENDING UNITS SECTION END -->
 
             <!-- 3. DETAILS VIEW -->
             <div id="detailsView" class="view-section hidden max-w-4xl mx-auto">
@@ -206,20 +273,23 @@
                 <div class="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[50px]"></div>
                     <div class="flex flex-col md:flex-row gap-6 items-start relative z-10">
-                        <div class="shrink-0 mx-auto md:mx-0 text-center">
-                            <div class="w-24 h-24 bg-slate-800 rounded-full border-2 border-blue-500/50 flex items-center justify-center mx-auto">
-                                <i class="fas fa-user-astronaut text-4xl text-slate-300"></i>
+                         <div class="shrink-0 mx-auto md:mx-0 text-center">
+                            <div class="w-24 h-24 bg-slate-800 rounded-full border-2 border-blue-500/50 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                                <i class="fas fa-user-astronaut text-4xl text-slate-200"></i>
                             </div>
-                            <h3 class="text-2xl font-bold text-blue-400 mt-3 glow-text">SOHAIL</h3>
-                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Founder & Architect</p>
+                            <!-- NAME HIGHLIGHTED & BIGGER -->
+                            <h3 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-400 mt-4 glow-text tracking-wider uppercase">SOHAIL SHAIK</h3>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Founder & Developer</p>
                         </div>
-                        <div class="space-y-4 text-sm text-slate-300 leading-relaxed font-light">
-                            <p>I’m Sohail. Since childhood, I’ve been driven by one goal: creating meaningful solutions, not just earning money. My journey started on the <b>production floor</b> (Ground Level), where I saw the reality—unclear data, manual errors, and confusion.</p>
-                            <p>I realized that <i>if you can't measure it accurately, you can't improve it.</i> That’s why I built <b>PRIME X</b>. It replaces messy sheets with transparent metrics. This is just the beginning. My vision is to build scalable tems for <b>India’s industrial growth</b>.</p>
+                        
+                        <!-- NEW STORY ADDED -->
+                        <div class="space-y-4 text-sm text-slate-300 leading-relaxed font-light border-l-2 border-blue-500/20 pl-4 md:pl-6 py-2">
+                            <p class="italic text-slate-400">"I feel a problem in the industry where many tasks were still done manually. To solve this, I built a digital software that helps record accurate data and reduces extra work for managers.</p>
+                            <p>This allows them to spend more time on actual production instead of paperwork. For <b class="text-blue-400">Sohail</b>, this project is an important step and the beginning of many practical solutions he plans to build in the future."</p>
                         </div>
                     </div>
                 </div>
-                <div class="text-center mt-8"><p class="text-[10px] text-slate-600 font-mono">© 2023 Developed by Sohail.</p></div>
+                <div class="text-center mt-8"><p class="text-[10px] text-slate-600 font-mono">© 2026/01 Developed by Sohail.</p></div>
             </div>
 
         </div>
