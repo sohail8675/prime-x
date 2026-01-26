@@ -67,77 +67,105 @@ window.switchView = function(viewId) {
 }
 
 // --- INIT ---
+// --- INIT (COMPLETE & FIXED) ---
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('menuBtn').addEventListener('click', () => {
-        document.getElementById('sideMenu').classList.remove('-translate-x-full');
-        document.getElementById('menuOverlay').classList.remove('hidden');
-    });
-    document.getElementById('closeMenuBtn').addEventListener('click', () => {
-        document.getElementById('sideMenu').classList.add('-translate-x-full');
-        document.getElementById('menuOverlay').classList.add('hidden');
-    });
-    document.getElementById('menuOverlay').addEventListener('click', () => {
-        document.getElementById('sideMenu').classList.add('-translate-x-full');
-        document.getElementById('menuOverlay').classList.add('hidden');
-    });
 
+    // 1. Menu Toggles
+    const menuBtn = document.getElementById('menuBtn');
+    if(menuBtn) {
+        menuBtn.addEventListener('click', () => {
+            document.getElementById('sideMenu').classList.remove('-translate-x-full');
+            document.getElementById('menuOverlay').classList.remove('hidden');
+        });
+    }
+    
+    const closeMenu = () => {
+        document.getElementById('sideMenu').classList.add('-translate-x-full');
+        document.getElementById('menuOverlay').classList.add('hidden');
+    };
+    document.getElementById('closeMenuBtn').addEventListener('click', closeMenu);
+    document.getElementById('menuOverlay').addEventListener('click', closeMenu);
+
+    // 2. Export Button Listener
+    const expBtn = document.getElementById('exportArchiveBtn');
+    if(expBtn) expBtn.addEventListener('click', exportClosedKits);
+
+    // 3. Login Logic
     document.getElementById('firebaseLoginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = e.target.querySelector('button');
         const err = document.getElementById('loginErrorMsg');
         btn.disabled = true; btn.innerText = "Verifying...";
+        
         try {
             const { role } = await loginUser(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value);
             currentUserRole = role;
-            document.getElementById('currentRoleDisplay').innerText = role;
+            
+            const roleDisplay = document.getElementById('currentRoleDisplay');
+            if(roleDisplay) roleDisplay.innerText = role;
+
             await initializeData();
+
+            // Role Logic
             if(role === 'Manager' || role === 'Data Incharge') {
                 switchView('dashboardView');
-                document.getElementById('addKitBtn').classList.remove('hidden');
+                if (role === 'Data Incharge') {
+                    document.getElementById('addKitBtn').classList.remove('hidden');
+                } else {
+                    document.getElementById('addKitBtn').classList.add('hidden');
+                }
             } else {
                 switchView('activeUnitsView');
                 document.getElementById('addKitBtn').classList.add('hidden');
             }
+
         } catch(error) {
             err.innerText = error.message; err.classList.remove('hidden');
         } finally {
             btn.disabled = false; btn.innerText = "LOG IN";
         }
-       // --- LISTENERS FOR PENDING KITS FILTER ---
-    ['pendingDateStart', 'pendingDateEnd', 'pendingLineFilter', 'pendingKitSearch'].forEach(id => {
+    });
+
+    // 4. Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await logoutUser(); location.reload();
+    });
+
+    // 5. Modals & Forms
+    document.getElementById('addKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
+    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
+    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
+    
+    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
+    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
+    
+    // 6. Dashboard Filters
+    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
+    
+    // 7. Active Units Filters
+    ['sidebarFilterBtn','sidebarDateStart','sidebarDateEnd','sidebarTypeFilter','kitSearch'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.addEventListener(id.includes('Search')?'keyup':'change', renderSidebarKits);
+        }
+    });
+
+    // 8. Pending Units Filters
+    ['pendingDateStart', 'pendingDateEnd', 'pendingLineFilter', 'pendingTypeFilter', 'pendingKitSearch'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
             el.addEventListener(id.includes('Search') ? 'keyup' : 'change', renderPendingKits);
         }
     });
-    });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await logoutUser(); location.reload();
-    });
-
-    document.getElementById('addKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.remove('hidden'));
-    document.getElementById('cancelAddKitBtn').addEventListener('click', () => document.getElementById('addKitModal').classList.add('hidden'));
-    document.getElementById('addKitForm').addEventListener('submit', handleAddKit);
-    document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
-    document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
-    
-    document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
-    
-    ['sidebarFilterBtn','sidebarDateStart','sidebarDateEnd','kitSearch'].forEach(id => {
+    // 9. Closed Units Filters
+    ['closedFilterBtn','closedDateStart','closedDateEnd','closedTypeFilter','closedKitSearch'].forEach(id => {
         const el = document.getElementById(id);
         if(el) {
-            el.addEventListener(id.includes('Search')?'keyup':'click', renderSidebarKits);
-            if(id.includes('Date')) el.addEventListener('change', renderSidebarKits);
+            el.addEventListener(id.includes('Search')?'keyup':'change', renderClosedKits);
         }
     });
-    ['closedFilterBtn','closedDateStart','closedDateEnd','closedKitSearch'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) {
-            el.addEventListener(id.includes('Search')?'keyup':'click', renderClosedKits);
-            if(id.includes('Date')) el.addEventListener('change', renderClosedKits);
-        }
-    });
+
 });
 
 async function initializeData() {
@@ -178,13 +206,17 @@ function renderSidebarKits() {
     const start = document.getElementById('sidebarDateStart').value;
     const end = document.getElementById('sidebarDateEnd').value;
     const line = document.getElementById('sidebarLineFilter').value;
+    
+    // NEW: Type Filter Value
+    const type = document.getElementById('sidebarTypeFilter').value;
 
    const filtered = kits.filter(k => 
     k.status === 'Active' && 
-    !isKitPending(k.createdDate) && // <--- YE LINE MAGIC KAREGI
+    !isKitPending(k.createdDate) &&
     (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
     (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-    (!line || line === "All Lines" || k.line === line)
+    (!line || line === "All Lines" || k.line === line) &&
+    (!type || type === "" || k.type === type) // <--- NEW CHECK
 );
     list.innerHTML = '';
     if(!filtered.length) list.innerHTML = '<div class="text-slate-500 text-center text-xs p-4">No units found.</div>';
@@ -262,26 +294,23 @@ function openKitAction(kit) {
 }
 
 function renderManagerDetailCard(kit, card) {
+    // Sirf is kit ke logs uthao
     const logs = productionLogs.filter(l => l.kitId === kit.id).reverse();
+    
+    // Progress Bar Calcs
     const totalDone = kit.packedQty + kit.rejectionQty;
     const progress = Math.min((totalDone/kit.totalQty)*100, 100);
     const currentRem = kit.totalQty - totalDone;
     
-    // --- 🟢 NEW LOGIC: DATE CALCULATION START ---
+    // Date Logic
     let dateDisplayHtml = '';
-    
     if (kit.status === 'Closed') {
-        // Agar Closed hai, to Duration calculate karo
-        // Note: Agar purani kit mein closedDate nahi hai to hum aaj ki date maan lenge display ke liye
         const start = new Date(kit.createdDate);
         const end = kit.closedDate ? new Date(kit.closedDate) : new Date(); 
-        
-        // Time Difference nikalna
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        const totalDays = diffDays === 0 ? 1 : diffDays; // Kam se kam 1 din dikhaye
+        const totalDays = diffDays === 0 ? 1 : diffDays;
 
-        // Ye hai wo Special Display (Start -> Days -> End)
         dateDisplayHtml = `
             <div class="flex items-center gap-2 text-[10px] bg-slate-900/80 p-1.5 rounded-lg border border-white/10 mt-1">
                 <span class="text-slate-500">${kit.createdDate}</span>
@@ -292,61 +321,70 @@ function renderManagerDetailCard(kit, card) {
             </div>
         `;
     } else {
-        // Agar Active/Pending hai to Normal purana wala dikhao
         dateDisplayHtml = `<span class="text-[10px] text-slate-500"><i class="far fa-calendar-alt ml-1"></i> ${kit.createdDate}</span>`;
     }
-    // --- 🔴 LOGIC END ---
 
+    // Badge Logic
     const typeBadge = kit.type === 'Final Unit' 
         ? '<span class="bg-green-900/50 text-green-400 px-2 rounded text-[10px] border border-green-500/30">FINAL</span>' 
         : '<span class="bg-yellow-900/50 text-yellow-400 px-2 rounded text-[10px] border border-yellow-500/30">PART</span>';
     
-    // Close Button Logic
+    // Buttons Logic
     const isComplete = totalDone >= kit.totalQty;
-    let closeBtn = '';
-    
-    if (kit.status === 'Closed') {
-        closeBtn = `<button class="flex-1 bg-slate-800 text-slate-500 py-2 rounded text-xs cursor-default">Completed & Locked</button>`;
-    } else {
-        closeBtn = isComplete 
+    let closeBtn = kit.status === 'Closed' 
+        ? `<button class="flex-1 bg-slate-800 text-slate-500 py-2 rounded text-xs cursor-default">Completed & Locked</button>`
+        : (isComplete 
             ? `<button onclick="closeKitAction('${kit.id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 py-2 rounded text-xs border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition font-bold"><i class="fas fa-check-circle mr-1"></i> Mark as Completed</button>` 
-            : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`;
-    }
+            : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`);
 
     const transferBtn = kit.status === 'Closed' 
         ? '' 
         : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
 
+    // --- TABLE GENERATION START ---
     let table = `
     <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
         <thead class="bg-slate-900 sticky top-0">
             <tr>
                 <th class="p-2 w-20">DATE</th>
                 <th class="p-2 text-center">INPUT</th>
-                <th class="p-2 text-center text-green-400">FINAL PACK</th>
-                <th class="p-2 text-center text-orange-400">SEMI FG</th>
+                <th class="p-2 text-center text-green-400">FINAL</th>
+                <th class="p-2 text-center text-orange-400">SEMI</th>
                 <th class="p-2 text-center text-purple-400">REWORK</th>
-                <th class="p-2 text-center text-cyan-400">REMAINING</th>
-                <th class="p-2 text-right text-red-400">REJECTION</th>
+                <th class="p-2 text-center text-cyan-400">REM</th>
+                <th class="p-2 text-right text-red-400">REJ</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-white/5">`;
 
     logs.forEach(l => {
-        table += `
-        <tr class="hover:bg-white/5 transition">
-            <td class="p-2 truncate">${l.date}</td>
-            <td class="p-2 text-center text-slate-400">${l.input||0}</td>
-            <td class="p-2 text-center text-green-400 font-bold">${l.output||0}</td>
-            <td class="p-2 text-center text-orange-400">${l.semi||0}</td>
-            <td class="p-2 text-center text-purple-400">${l.rework||0}</td>
-            <td class="p-2 text-center text-cyan-400 font-mono">${currentRem}</td>
-            <td class="p-2 text-right text-red-400 font-bold">${l.rejection||0}</td>
-        </tr>`;
+        // 🔥 MAGIC FIX: Agar Transfer entry hai (Leader = System), to special row dikhao
+        if (l.leader === 'System' || (l.remarks && l.remarks.includes('Transferred'))) {
+            table += `
+            <tr class="bg-orange-900/20 border-l-2 border-orange-500">
+                <td class="p-2 text-orange-400 font-mono align-top">${l.date}</td>
+                <!-- colspan="6" ka matlab baaki ke saare columns merge karke message dikhao -->
+                <td colspan="6" class="p-2 text-left text-orange-200 italic tracking-wide align-middle">
+                    <i class="fas fa-exchange-alt mr-2"></i> ${l.remarks}
+                </td>
+            </tr>`;
+        } else {
+            // Normal Row
+            table += `
+            <tr class="hover:bg-white/5 transition">
+                <td class="p-2 truncate">${l.date}</td>
+                <td class="p-2 text-center text-slate-400">${l.input||0}</td>
+                <td class="p-2 text-center text-green-400 font-bold">${l.output||0}</td>
+                <td class="p-2 text-center text-orange-400">${l.semi||0}</td>
+                <td class="p-2 text-center text-purple-400">${l.rework||0}</td>
+                <td class="p-2 text-center text-cyan-400 font-mono">${currentRem}</td>
+                <td class="p-2 text-right text-red-400 font-bold">${l.rejection||0}</td>
+            </tr>`;
+        }
     });
     table += '</tbody></table>';
+    // --- TABLE GENERATION END ---
 
-    // HTML Structure Update (New Date Display Add kiya hai yahan)
     card.innerHTML = `
         <div class="flex justify-between items-start mb-4">
             <div>
@@ -358,7 +396,6 @@ function renderManagerDetailCard(kit, card) {
                             <i class="fas fa-industry mr-1"></i> ${kit.line}
                         </span>
                     </div>
-                    <!-- YAHAN AAYEGA SPECIAL DATE DISPLAY -->
                     ${dateDisplayHtml}
                 </div>
             </div>
@@ -466,6 +503,38 @@ function setupLeaderForm(kit, formContainer) {
             
             kit.packedQty = newPacked; kit.rejectionQty = newRej;
             playSound('success');
+                                // --- 🟢 UPDATED WHATSAPP PATCH (With Remaining) ---
+            
+            // 1. Remaining Calculate karo (Total - (Packed + Reject))
+            const currentRem = kit.totalQty - (kit.packedQty + kit.rejectionQty);
+
+            // 2. Button dhundo
+            const waBtn = document.getElementById('whatsappShareBtn');
+            
+            // 3. Message banao (Ab Remaining bhi hai isme)
+            const msg = `*📢 PRODUCTION ENTRY | ${log.line}*\n` +
+                        `-----------------------------\n` +
+                        `👤 *Leader:* ${log.leader}\n` +
+                        `🛡️ *PQC:* ${log.pqc}\n` +
+                        `📦 *Kit:* ${log.kitId} (${log.model})\n` +
+                        `-----------------------------\n` +
+                        `📥 *Input:* ${log.input}\n` +
+                        `✅ *Packed:* ${log.output}\n` +
+                        `⚠️ *Reject:* ${log.rejection}\n` +
+                        `🟠 *Semi:* ${log.semi}\n` +
+                        `🟣 *Rework:* ${log.rework}\n` +
+                        `-----------------------------\n` +
+                        `🔵 *REMAINING:* ${currentRem}\n` +  // <--- YE ADD KIYA HAI
+                        `-----------------------------\n` +
+                        `📝 *Note:* ${log.remarks}\n` +
+                        `_Sent via Prime X OS_`;
+
+            // 4. Click Action
+            waBtn.onclick = function() {
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+            };
+            // --- 🔴 END PATCH ---
+
             document.getElementById('resInput').innerText = log.input;
             document.getElementById('resOutput').innerText = log.output;
             document.getElementById('resRej').innerText = log.rejection;
@@ -540,20 +609,22 @@ function updateManagerDashboard() {
             </tr>`;
     });
 }
-
 function renderClosedKits() {
     const list = document.getElementById('closedKitList');
     const term = document.getElementById('closedKitSearch').value.toLowerCase();
     const start = document.getElementById('closedDateStart').value;
     const end = document.getElementById('closedDateEnd').value;
     const line = document.getElementById('closedLineFilter').value;
+    
+    // NEW: Type Filter
+    const type = document.getElementById('closedTypeFilter').value;
 
-    // Filter Logic: Status 'Closed' hona chahiye
     const closed = kits.filter(k => 
         k.status === 'Closed' && 
         (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
         (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-        (!line || line === "All Lines" || k.line === line)
+        (!line || line === "All Lines" || k.line === line) &&
+        (!type || type === "" || k.type === type) // <--- NEW CHECK
     );
 
     list.innerHTML = '';
@@ -565,9 +636,9 @@ function renderClosedKits() {
 
     closed.forEach(k => {
         const div = document.createElement('div');
-        // Isme wahi CSS class lagayi hai jo Active mein thi taaki design same dikhe
-        div.className = "kit-item flex justify-between items-center bg-slate-800/50 p-3 rounded mb-2 border border-white/5 hover:border-blue-500/50 cursor-pointer";
+        div.className = `kit-item flex justify-between items-center bg-slate-800/50 p-3 rounded mb-2 border border-white/5 hover:border-blue-500/50 cursor-pointer ${k.isTransferred ? 'is-transferred' : ''} ${k.type === 'Final Unit' ? 'is-final' : ''}`;
         div.innerHTML = `
+            ${k.isTransferred ? '<div class="transferred-badge">TR</div>' : ''}
             <div>
                 <div class="font-bold text-white text-sm">${k.id}</div>
                 <div class="text-xs text-slate-400 font-mono">${k.model}</div>
@@ -582,35 +653,76 @@ function renderClosedKits() {
     });
 }
 
-async function handleTransferKit(e) {
-    e.preventDefault();
-    const id = document.getElementById('transferKitId').value;
-    const k = kits.find(x => x.id === id);
-    const qty = parseInt(document.getElementById('transferQty').value);
-    if(qty > (k.totalQty - (k.packedQty+k.rejectionQty))) return alert("Invalid Qty");
-    
-    const newId = id + "-TR";
-    const newKit = { ...k, id: newId, totalQty: qty, remainingQty: qty, packedQty: 0, rejectionQty: 0, usedQty:0, line: document.getElementById('transferTo').value, isTransferred: true, createdDate: getLocalDateString() };
-    
-    await updateDoc(doc(db,"kits",id), { totalQty: k.totalQty - qty });
-    await setDoc(doc(db,"kits",newId), newKit);
-    await addProductionLog({ date: getLocalDateString(), line: "System", leader: "Transfer", kitId: id, model: k.model, input:0, output:0, remarks: `Transfer to ${newId}` });
-    
-    location.reload();
-}
 
-window.exportManagerData = exportManagerData;
-window.exportClosedKits = exportClosedKits;
-window.initTransfer = function(id) { document.getElementById('transferKitId').value=id; document.getElementById('transferFrom').value=kits.find(k=>k.id===id).line; document.getElementById('transferModal').classList.remove('hidden'); }
-window.closeKitAction = async function(id) { 
-    if(confirm('Archive this Kit?')) { 
-        // Ab hum status ke saath-saath AAJ KI DATE bhi save karenge
-        await updateDoc(doc(db,"kits",id), {
-            status:'Closed',
-            closedDate: getLocalDateString() // <--- YE ZAROORI HAI
-        }); 
-        location.reload(); 
-    } 
+// --- FIXED TRANSFER FUNCTION ---
+async function handleTransferKit(e) {
+    e.preventDefault(); // Page reload rokne ke liye
+    
+    // 1. Data Uthana
+    const btn = document.getElementById('transferForm').querySelector('button[type="submit"]');
+    const originalText = btn.innerText;
+    btn.disabled = true; btn.innerText = "Processing...";
+
+    try {
+        const id = document.getElementById('transferKitId').value;
+        const targetLine = document.getElementById('transferTo').value;
+        const qty = parseInt(document.getElementById('transferQty').value);
+        const remarks = document.getElementById('transferRemarks').value;
+
+        // 2. Validation
+        if(!targetLine) throw new Error("Select a Target Line");
+        if(isNaN(qty) || qty <= 0) throw new Error("Enter valid Quantity");
+
+        const k = kits.find(x => x.id === id);
+        const currentRem = k.totalQty - (k.packedQty + k.rejectionQty);
+
+        if(qty > currentRem) throw new Error(`Cannot transfer ${qty}. Only ${currentRem} remaining.`);
+
+        // 3. New Kit Creation (TR wali)
+        const newId = `${id}-TR-${Math.floor(Math.random()*1000)}`; // Unique ID
+        
+        const newKit = { 
+            ...k, 
+            id: newId, 
+            totalQty: qty, 
+            remainingQty: qty, 
+            packedQty: 0, 
+            rejectionQty: 0, 
+            usedQty: 0, 
+            semiQty: 0, 
+            reworkQty: 0,
+            line: targetLine, 
+            isTransferred: true, 
+            createdDate: getLocalDateString(),
+            createdBy: 'Transfer System' 
+        };
+        
+        // 4. Update Database
+        // Purani kit ka total kam karna
+        await updateDoc(doc(db,"kits",id), { totalQty: k.totalQty - qty });
+        // Nayi kit banana
+        await setDoc(doc(db,"kits",newId), newKit);
+        
+        // Log Entry
+        await addProductionLog({ 
+            date: getLocalDateString(), 
+            line: k.line, 
+            leader: "System", 
+            kitId: id, 
+            model: k.model, 
+            input: 0, output: 0, rejection:0, 
+            remarks: `Transferred ${qty} to ${targetLine} (${newId}). Note: ${remarks}` 
+        });
+
+        alert("Transfer Successful!");
+        document.getElementById('transferModal').classList.add('hidden');
+        location.reload(); // Refresh taaki naya data dikhe
+
+    } catch(err) {
+        alert(err.message);
+    } finally {
+        btn.disabled = false; btn.innerText = originalText;
+    }
 }
 // --- FIXED EXPORT FUNCTION ---
 function exportManagerData() {
@@ -620,9 +732,71 @@ function exportManagerData() {
     ).join("\n");
     const link = document.createElement("a"); link.href = "data:text/csv;charset=utf-8," + encodeURI(csv); link.download = "PrimeX_Logs.csv"; link.click();
 }
-function exportClosedKits() {
-    let csv = "Kit,Model,Line,Date,Pack\n" + kits.filter(k=>k.status==='Closed').map(k => `${k.id},${k.model},${k.line},${k.createdDate},${k.packedQty}`).join("\n");
-    const link = document.createElement("a"); link.href = "data:text/csv;charset=utf-8," + encodeURI(csv); link.download = "Archive.csv"; link.click();
+// --- FIXED EXPORT FUNCTION (A to Z Details) ---
+async function exportClosedKits() {
+    console.log("Export started..."); // Debugging ke liye
+
+    // 1. Data Check
+    const closed = kits.filter(k => k.status === 'Closed');
+    if (closed.length === 0) {
+        alert("No closed kits found to export!");
+        return;
+    }
+
+    // 2. Button ko feedback dene ke liye (Optional)
+    const btn = document.getElementById('exportArchiveBtn');
+    const oldText = btn.innerHTML;
+    btn.innerText = "Downloading...";
+
+    try {
+        // 3. CSV Header
+        let csv = "Kit ID,Model,Line,Start Date,Close Date,Duration (Days),Last Leader,Last PQC,Total Order Qty,Total Input,Final Packed,Rejection,Semi FG,Rework Pending,Status\n";
+
+        // 4. Data Loop
+        const rows = closed.map(k => {
+            // Duration Calc
+            let duration = "1";
+            if (k.createdDate && k.closedDate) {
+                const start = new Date(k.createdDate);
+                const end = new Date(k.closedDate);
+                const diffTime = Math.abs(end - start);
+                duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                if(duration === 0) duration = 1;
+            }
+
+            // Logs Check for Leader/PQC
+            // Hum productionLogs array se filter kar rahe hain
+            const myLogs = productionLogs.filter(l => l.kitId === k.id);
+            let lastLeader = "N/A";
+            let lastPQC = "N/A";
+            
+            if (myLogs.length > 0) {
+                // Last entry uthao
+                const lastLog = myLogs[myLogs.length - 1]; 
+                lastLeader = lastLog.leader || "N/A";
+                lastPQC = lastLog.pqc || "N/A";
+            }
+
+            // Row Generate
+            return `${k.id},${k.model},${k.line},${k.createdDate},${k.closedDate || 'N/A'},${duration} Days,${lastLeader},${lastPQC},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},Closed`;
+        });
+
+        csv += rows.join("\n");
+
+        // 5. Download
+        const link = document.createElement("a");
+        link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+        link.download = `PrimeX_Archive_Full_${getLocalDateString()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (err) {
+        console.error(err);
+        alert("Error exporting data. Check console.");
+    } finally {
+        btn.innerHTML = oldText; // Button wapas normal karo
+    }
 }
 
 // --- NEW EDIT FUNCTION ---
@@ -668,6 +842,9 @@ function renderPendingKits() {
     const start = document.getElementById('pendingDateStart').value;
     const end = document.getElementById('pendingDateEnd').value;
     const line = document.getElementById('pendingLineFilter').value;
+    
+    // NEW: Type Filter
+    const type = document.getElementById('pendingTypeFilter').value;
 
     // Filter Logic
     const filtered = kits.filter(k => 
@@ -675,7 +852,8 @@ function renderPendingKits() {
         isKitPending(k.createdDate) && 
         (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
         (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-        (!line || line === "All Lines" || k.line === line)
+        (!line || line === "All Lines" || k.line === line) &&
+        (!type || type === "" || k.type === type) // <--- NEW CHECK
     );
 
     list.innerHTML = '';
@@ -686,12 +864,13 @@ function renderPendingKits() {
         const rem = k.totalQty - (k.packedQty + k.rejectionQty);
         const lineShort = k.line.replace('Line ','L').trim();
         
-        // CSS wahi hai (Orange Border wala)
-        div.className = `kit-item group border-l-2 border-orange-500 ${k.isTransferred?'is-transferred':''}`;
+        div.className = `kit-item group ${k.isTransferred?'is-transferred':''} ${k.type === 'Final Unit' ? 'is-final' : ''}`;
         
-        // ✨ CHANGE IS HERE: "Overdue" hata diya, "Model" wapas laga diya
         div.innerHTML = `
-            <div class="flex items-center gap-3 mb-2">
+            ${k.isTransferred ? '<div class="transferred-badge">TR</div>' : ''}
+            <div class="absolute top-0 left-0 bg-orange-500 text-white text-[8px] px-1 font-bold rounded-br">PENDING</div>
+            
+            <div class="flex items-center gap-3 mb-2 pt-2">
                 <div class="line-avatar bg-orange-900/20 text-orange-400 border-orange-500/30">${lineShort}</div>
                 <div>
                     <div class="font-bold text-sm text-slate-200">${k.id}</div>
@@ -708,7 +887,102 @@ function renderPendingKits() {
         list.appendChild(div);
     });
 }
+    
+
 
 // Enable Search for Pending
 const pSearch = document.getElementById('pendingKitSearch');
 if(pSearch) pSearch.addEventListener('keyup', renderPendingKits);
+// --- NEW EXPORT FUNCTION FOR PENDING KITS (With Leader & PQC) ---
+window.exportPendingKits = function() {
+    // 1. Pending Kits filter karein
+    const pending = kits.filter(k => k.status === 'Active' && isKitPending(k.createdDate));
+
+    if (pending.length === 0) {
+        alert("No pending kits to export!");
+        return;
+    }
+
+    // 2. CSV Header (Jo column chahiye wo yahan hain)
+    let csv = "Created Date,Line,Kit ID,Model,Last Leader,Last PQC,Total Qty,Input,Final Pack,Rejection,Semi FG,Rework,Remaining\n";
+
+    // 3. Loop through kits and find details
+    pending.forEach(k => {
+        // Kit ka Remaining calculate karein
+        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+        
+        // Logs check karke Last Leader aur PQC dhundein
+        // Hum saare logs filter karenge jo is Kit ID ke hain
+        const kitLogs = productionLogs.filter(l => l.kitId === k.id);
+        
+        // Agar logs hain, to sabse latest wala uthayenge
+        let lastLeader = "N/A";
+        let lastPQC = "N/A";
+        
+        if (kitLogs.length > 0) {
+            // Logs ko date ke hisaab se sort karein (Newest first) - assuming logs are pushed chronologically
+            // Ya agar timestamp hai to usse sort karein. Simple array reverse usually works if pushed in order.
+            const latestLog = kitLogs[kitLogs.length - 1]; 
+            lastLeader = latestLog.leader || "N/A";
+            lastPQC = latestLog.pqc || "N/A";
+        }
+
+        // CSV Row banana
+        csv += `${k.createdDate},${k.line},${k.id},${k.model},${lastLeader},${lastPQC},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},${rem}\n`;
+    });
+
+    // 4. Download Trigger karein
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = `Pending_Kits_Report_${getLocalDateString()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+// --- MISSING BUTTON ACTIONS RESTORED ---
+
+// 1. Transfer Modal Open karne wala function
+window.initTransfer = function(id) {
+    const k = kits.find(x => x.id === id);
+    if(!k) return;
+    
+    // Modal ke inputs bharo
+    document.getElementById('transferKitId').value = k.id;
+    document.getElementById('transferFrom').value = k.line;
+    document.getElementById('transferQty').value = ''; // Reset Qty
+    document.getElementById('transferRemarks').value = ''; // Reset Remarks
+    
+    // Modal dikhao
+    document.getElementById('transferModal').classList.remove('hidden');
+}
+
+// 2. Kit ko Close/Complete karne wala function
+window.closeKitAction = async function(id) {
+    if(!confirm("⚠️ Are you sure you want to CLOSE this kit?\nIt will be moved to Closed Kits archive.")) return;
+
+    try {
+        // Firebase Update
+        await updateDoc(doc(db, "kits", id), {
+            status: 'Closed',
+            closedDate: getLocalDateString()
+        });
+
+        // Local Data Update
+        const k = kits.find(x => x.id === id);
+        if(k) {
+            k.status = 'Closed';
+            k.closedDate = getLocalDateString();
+        }
+
+        alert("Kit Closed Successfully!");
+        
+        // View Refresh karo
+        renderSidebarKits(); // List se hat jayega
+        document.getElementById('dynamicDetailsContainer').innerHTML = ''; // Details clear
+        switchView('activeUnitsView'); // Wapas list pe jao
+
+    } catch(e) {
+        console.error(e);
+        alert("Error closing kit: " + e.message);
+    }
+}

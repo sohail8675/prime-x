@@ -50,16 +50,18 @@
             </div>
         </div>
 
-        <!-- RIGHT SIDE: ROLE & LOGOUT -->
-        <div class="flex items-center gap-4">
-            <div class="text-right hidden md:block">
-                <span class="text-[10px] text-slate-500 block uppercase">Logged in as</span>
-                <span id="currentRoleDisplay" class="text-cyan-400 font-bold font-mono text-xs glow-text"></span>
+          <!-- RIGHT SIDE: ROLE & LOGOUT -->
+        <div class="flex items-center gap-3">
+            <!-- Role Display (Visible on Mobile & Desktop) -->
+            <div class="text-right flex flex-col justify-center">
+                <span class="text-[8px] text-slate-500 uppercase font-bold tracking-wider leading-none mb-1">Current Role</span>
+                <span id="currentRoleDisplay" class="text-cyan-400 font-bold font-mono text-xs bg-slate-800/80 px-2 py-1 rounded border border-cyan-500/20 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                    Loading...
+                </span>
             </div>
-            <!-- Mobile pe sirf Role dikhega -->
-            <span id="currentRoleDisplayMobile" class="md:hidden text-cyan-400 font-bold font-mono text-xs bg-slate-800 px-2 py-1 rounded border border-white/10"></span>
 
-            <button id="logoutBtn" class="bg-slate-800 text-red-400 hover:bg-red-500 hover:text-white p-3 rounded-xl transition border border-white/10 shadow-lg">
+            <!-- Logout Button -->
+            <button id="logoutBtn" class="bg-slate-800 text-red-400 hover:bg-red-500 hover:text-white w-10 h-10 flex items-center justify-center rounded-xl transition border border-white/10 shadow-lg">
                 <i class="fas fa-power-off text-lg"></i>
             </button>
         </div>
@@ -93,7 +95,7 @@
                 <i class="fas fa-user-astronaut w-5"></i> About Founder
             </button>
         </div>
-        <div class="p-4 text-[10px] text-slate-600 text-center">PRIME X v4.2 Fixed</div>
+        <div class="p-4 text-[10px] text-slate-600 text-center">PRIME X OS</div>
     </nav>
     <div id="menuOverlay" class="fixed inset-0 bg-black/50 z-40 hidden backdrop-blur-sm"></div>
 
@@ -107,7 +109,7 @@
                 <div class="flex flex-col md:flex-row justify-between items-start gap-4">
                  <div>
     <h2 class="text-3xl font-bold text-white tracking-wide uppercase">Production Dashboard</h2>
-    <p class="text-sm text-blue-400 font-mono font-bold">Live Output & Efficiency Tracker</p>
+    <p class="text-sm text-blue-400 font-mono font-bold">lets track every output</p>
 </div>
                     <div class="flex flex-wrap gap-2 bg-slate-900/80 p-2 rounded-xl border border-white/10">
                         <input type="date" id="filterStartDate" class="bg-transparent border border-slate-700 text-white text-xs rounded px-2 py-1">
@@ -167,8 +169,8 @@
                 <!-- Header & Action -->
                 <div class="flex justify-between items-end mb-4 px-2">
                     <div>
-                        <h2 class="text-2xl font-bold text-white tracking-wide">Active Units</h2>
-                        <p class="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Live Production</p>
+                        <h2 class="text-2xl font-bold text-white tracking-wide">Active KITS</h2>
+                        <p class="text-[10px] text-slate-400 font-mono uppercase tracking-widest">prime X os</p>
                     </div>
                     <!-- New BIG Button -->
                     <button id="addKitBtn" class="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] px-6 py-2 rounded-lg font-bold text-sm transition-all transform hover:scale-105 hidden flex items-center gap-2 border border-white/10">
@@ -178,14 +180,22 @@
 
                 <!-- Compact Filter Box -->
                 <div class="bg-darker/80 backdrop-blur-md border border-white/10 p-3 rounded-xl mb-4 shadow-xl">
-                    <!-- Row 1: Dates & Line (Tiny Inputs) -->
-                    <div class="grid grid-cols-3 gap-2 mb-2">
-                        <input type="date" id="sidebarDateStart" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500 text-center">
-                        <input type="date" id="sidebarDateEnd" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500 text-center">
-                        <select id="sidebarLineFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500">
-                            <option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
-                        </select>
-                    </div>
+                   <!-- Grid cols ko 4 kar diya taaki Type filter fit ho jaye -->
+<div class="grid grid-cols-4 gap-2 mb-2">
+    <input type="date" id="sidebarDateStart" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500 text-center">
+    <input type="date" id="sidebarDateEnd" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500 text-center">
+    
+    <!-- New Type Filter -->
+    <select id="sidebarTypeFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500">
+        <option value="">All Types</option>
+        <option value="Component">⚙️ Part</option>
+        <option value="Final Unit">📦 Final</option>
+    </select>
+
+    <select id="sidebarLineFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500">
+        <option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+    </select>
+</div>
                     <!-- Row 2: Search & Apply (Sleek) -->
                     <div class="flex gap-2">
                         <div class="relative flex-1">
@@ -198,23 +208,37 @@
                 <div id="kitList" class="space-y-2 pb-20"></div>
             </div>
             <!-- PENDING UNITS SECTION START -->
-<div id="pendingUnitsView" class="view-section hidden max-w-3xl mx-auto space-y-4">
-    <div class="flex justify-between items-end mb-4 px-2">
-        <div>
-            <h2 class="text-2xl font-bold text-white tracking-wide">Pending Kits</h2>
-            <p class="text-[10px] text-orange-400 font-mono uppercase tracking-widest">Older than 3 Days</p>
-        </div>
-    </div>
+            <!-- PENDING UNITS SECTION START -->
+            <div id="pendingUnitsView" class="view-section hidden max-w-3xl mx-auto space-y-4">
+                <div class="flex justify-between items-end mb-4 px-2">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white tracking-wide">Pending Kits</h2>
+                        <p class="text-[10px] text-orange-400 font-mono uppercase tracking-widest">Kits older than 3 Days</p>
+                    </div>
+                    <!-- NEW EXPORT BUTTON ADDED HERE -->
+                    <button onclick="exportPendingKits()" class="bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 border border-white/10">
+                        <i class="fas fa-file-excel"></i> Export Pending Data
+                    </button>
+                </div>
+                
+                <!-- NEW FILTER BOX FOR PENDING KITS (Baaki code same rahega...) -->
     <!-- NEW FILTER BOX FOR PENDING KITS -->
 <div class="bg-darker/80 backdrop-blur-md border border-white/10 p-3 rounded-xl mb-4 shadow-xl">
-    <!-- Row 1: Dates & Line Filter -->
-    <div class="grid grid-cols-3 gap-2 mb-2">
-        <input type="date" id="pendingDateStart" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500 text-center">
-        <input type="date" id="pendingDateEnd" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500 text-center">
-        <select id="pendingLineFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500">
-            <option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
-        </select>
-    </div>
+   <div class="grid grid-cols-4 gap-2 mb-2">
+    <input type="date" id="pendingDateStart" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500 text-center">
+    <input type="date" id="pendingDateEnd" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500 text-center">
+    
+    <!-- New Type Filter -->
+    <select id="pendingTypeFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500">
+        <option value="">All Types</option>
+        <option value="Component">⚙️ Part</option>
+        <option value="Final Unit">📦 Final</option>
+    </select>
+
+    <select id="pendingLineFilter" class="bg-slate-800 border border-white/10 text-white text-[10px] rounded px-2 py-1 outline-none focus:border-orange-500">
+        <option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+    </select>
+</div>
     <!-- Row 2: Search Bar -->
     <div class="flex gap-2">
         <div class="relative flex-1">
@@ -230,40 +254,73 @@
 
             <!-- 3. DETAILS VIEW -->
             <div id="detailsView" class="view-section hidden max-w-4xl mx-auto">
-                <button onclick="switchView('activeUnitsView')" class="mb-4 text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-left"></i> Back to List</button>
+                <button onclick="switchView('activeUnitsView')" class="mb-4 text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-left"></i> Back</button>
                 <div id="dynamicDetailsContainer"></div>
             </div>
 
-            <!-- 4. ARCHIVED UNITS -->
-            <div id="archivedUnitsView" class="view-section hidden max-w-3xl mx-auto space-y-4">
-                 <div class="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-white/10">
-                    <h2 class="text-xl font-bold text-white"></h2>
-                    <button onclick="exportClosedKits()" class="bg-emerald-900/50 text-emerald-400 px-3 py-1 rounded text-xs border border-emerald-500/30">Export</button>
-                </div>
-                <div class="bg-slate-800/50 p-3 rounded-xl grid grid-cols-2 gap-2">
-                     <input type="date" id="closedDateStart" class="form-input text-xs"><input type="date" id="closedDateEnd" class="form-input text-xs">
-                     <select id="closedLineFilter" class="col-span-2 form-input text-xs"><option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select>
-                     <input type="text" id="closedKitSearch" placeholder="Search Closed ID..." class="col-span-2 form-input text-xs">
-                     <button id="closedFilterBtn" class="col-span-2 bg-slate-700 text-white text-xs py-2 rounded">Search Archive</button>
-                </div>
-                <div id="closedKitList" class="space-y-2 pb-20"></div>
-            </div>
+        <!-- 4. ARCHIVED UNITS -->
+<div id="archivedUnitsView" class="view-section hidden max-w-3xl mx-auto space-y-4">
+     <div class="flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-white/10">
+        <h2 class="text-xl font-bold text-white">Closed Kits</h2>
+        
+        <!-- 🟢 YE NAYA BUTTON HAI (ID ke saath) -->
+        <button id="exportArchiveBtn" class="bg-emerald-900/50 text-emerald-400 px-3 py-1 rounded text-xs border border-emerald-500/30 hover:bg-emerald-900 hover:text-white transition">
+            <i class="fas fa-file-csv mr-1"></i> Export Data
+        </button>
 
-            <!-- 5. ABOUT SYSTEM -->
+    </div>
+   <div class="bg-slate-800/50 p-3 rounded-xl grid grid-cols-2 gap-2">
+     <input type="date" id="closedDateStart" class="form-input text-xs"><input type="date" id="closedDateEnd" class="form-input text-xs">
+     
+     <!-- New Type Filter -->
+     <select id="closedTypeFilter" class="form-input text-xs">
+         <option value="">All Types</option>
+         <option value="Component">⚙️ Part</option>
+         <option value="Final Unit">📦 Final</option>
+     </select>
+
+     <select id="closedLineFilter" class="form-input text-xs"><option value="">All Lines</option><option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option><option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option></select>
+     
+     <input type="text" id="closedKitSearch" placeholder="Search Closed ID..." class="col-span-2 form-input text-xs">
+          <button id="closedFilterBtn" class="col-span-2 bg-slate-700 text-white text-xs py-2 rounded">Search Archive</button>
+   </div>
+   <!-- 👇 YE MISSING THA, ISLIYE DATA NAHI DIKH RAHA THA 👇 -->
+   <div id="closedKitList" class="space-y-2 pb-20 mt-4"></div>
+</div>
+
+                       <!-- 5. ABOUT SYSTEM (UPDATED CONTENT) -->
             <div id="aboutSystemView" class="view-section hidden max-w-3xl mx-auto pt-6 px-4">
-                <div class="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-8">
-                    <h2 class="text-3xl font-bold text-white mb-4">PRIME X: The Future</h2>
-                    <div class="space-y-4 text-slate-300 text-sm leading-relaxed">
-                        <p>Traditional manufacturing relies on assumptions. Prime X relies on <b>Precision</b>. We replaced manual registers with a unified <b>Digital Backbone</b>.</p>
-                        <div class="bg-blue-900/20 p-4 rounded-lg border-l-4 border-blue-500">
-                            <h4 class="text-blue-400 font-bold mb-1">Solved: The "Double Counting" Problem</h4>
-                            <p class="text-xs">In multi-line assembly, moving parts from Line 1 to Line 3 often results in double counting. Prime X uses <b>Component-Level Tracking</b> to distinguish between 'Parts Made' and 'Final Output'.</p>
+                <div class="bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 relative overflow-hidden">
+                    
+                    <!-- Background Glow Effect -->
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-[60px]"></div>
+
+                    <!-- Heading (Same as before) -->
+                    <h2 class="text-3xl font-bold text-white mb-6 tracking-wide relative z-10">PRIME X: The Future</h2>
+                    
+                    <!-- New Content Area -->
+                    <div class="space-y-5 text-slate-300 text-sm leading-7 relative z-10 font-light">
+                        
+                        <p>
+                            <strong class="text-white">Prime X</strong> is a production management website designed to digitally track daily production activities in factories and assembly lines.
+                        </p>
+
+                        <p>
+                            Users log in based on their role—<span class="text-cyan-400 font-bold">Data Incharge</span>, <span class="text-cyan-400 font-bold">Line Leader</span>, or <span class="text-cyan-400 font-bold">Manager</span>. 
+                            Line Leaders and Data Incharges enter real-time production data such as input used, packed output, rejection, and rework details.
+                        </p>
+
+                        <!-- Highlighted Box for Key Benefit -->
+                        <div class="bg-white/5 border-l-4 border-blue-500 p-4 rounded-r-lg my-2">
+                            <p class="text-slate-200">
+                                This data is automatically organized and shown on a central dashboard, giving managers a clear overview of production performance, efficiency, and losses.
+                            </p>
                         </div>
-                        <ul class="list-disc pl-5 space-y-2 pt-2">
-                            <li><b>Live Telemetry:</b> Data moves from floor to dashboard in milliseconds.</li>
-                            <li><b>Digital Handover:</b> Shift transfers happen digitally.</li>
-                            <li><b>Quality Grading:</b> Automatic A/B/C grading of lines based on rejection.</li>
-                        </ul>
+
+                        <p>
+                            Prime X reduces manual work, minimizes errors, and helps management make <strong class="text-green-400">faster and more accurate decisions</strong>.
+                        </p>
+
                     </div>
                 </div>
             </div>
