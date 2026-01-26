@@ -69,6 +69,15 @@ window.switchView = function(viewId) {
 // --- INIT ---
 // --- INIT (COMPLETE & FIXED) ---
 document.addEventListener('DOMContentLoaded', () => {
+  // --- ADD THIS AT THE BOTTOM OF DOMContentLoaded ---
+setInterval(() => {
+    const d = new Date();
+    const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // Agar dashboard me koi jagah banayi hai to wahan dikhao, nahi to Header me daal sakte ho
+    // Example: Agar header me koi element id="liveTimeDisplay" ho
+    const display = document.getElementById('liveTimeDisplay');
+    if(display) display.innerText = timeStr;
+}, 1000);  
 
     // 1. Menu Toggles
     const menuBtn = document.getElementById('menuBtn');
@@ -206,18 +215,18 @@ function renderSidebarKits() {
     const start = document.getElementById('sidebarDateStart').value;
     const end = document.getElementById('sidebarDateEnd').value;
     const line = document.getElementById('sidebarLineFilter').value;
-    
-    // NEW: Type Filter Value
     const type = document.getElementById('sidebarTypeFilter').value;
 
-   const filtered = kits.filter(k => 
-    k.status === 'Active' && 
-    !isKitPending(k.createdDate) &&
-    (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
-    (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-    (!line || line === "All Lines" || k.line === line) &&
-    (!type || type === "" || k.type === type) // <--- NEW CHECK
-);
+       // ISKO PASTE KARO (Purane 'const filtered' ki jagah)
+    const filtered = kits.filter(k => 
+        k.status === 'Active' && 
+        !isKitPending(k.createdDate) &&
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
+        (!line || line === "" || line === "All Lines" || k.line === line) && // <--- YE FIX HAI
+        (!type || type === "" || (type === "Transferred" ? k.isTransferred : k.type === type))
+    );
+
     list.innerHTML = '';
     if(!filtered.length) list.innerHTML = '<div class="text-slate-500 text-center text-xs p-4">No units found.</div>';
 
@@ -337,10 +346,10 @@ function renderManagerDetailCard(kit, card) {
             ? `<button onclick="closeKitAction('${kit.id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 py-2 rounded text-xs border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition font-bold"><i class="fas fa-check-circle mr-1"></i> Mark as Completed</button>` 
             : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`);
 
-    const transferBtn = kit.status === 'Closed' 
+       // Agar Kit Closed hai YA User Manager hai, to button mat dikhao
+    const transferBtn = (kit.status === 'Closed' || currentUserRole === 'Manager') 
         ? '' 
         : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
-
     // --- TABLE GENERATION START ---
     let table = `
     <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
@@ -615,16 +624,15 @@ function renderClosedKits() {
     const start = document.getElementById('closedDateStart').value;
     const end = document.getElementById('closedDateEnd').value;
     const line = document.getElementById('closedLineFilter').value;
-    
-    // NEW: Type Filter
     const type = document.getElementById('closedTypeFilter').value;
 
+      // ISKO PASTE KARO (Purane 'const closed' ki jagah)
     const closed = kits.filter(k => 
         k.status === 'Closed' && 
         (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
         (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-        (!line || line === "All Lines" || k.line === line) &&
-        (!type || type === "" || k.type === type) // <--- NEW CHECK
+        (!line || line === "" || line === "All Lines" || k.line === line) && // <--- YE FIX HAI
+        (!type || type === "" || (type === "Transferred" ? k.isTransferred : k.type === type))
     );
 
     list.innerHTML = '';
@@ -732,29 +740,44 @@ function exportManagerData() {
     ).join("\n");
     const link = document.createElement("a"); link.href = "data:text/csv;charset=utf-8," + encodeURI(csv); link.download = "PrimeX_Logs.csv"; link.click();
 }
-// --- FIXED EXPORT FUNCTION (A to Z Details) ---
 async function exportClosedKits() {
-    console.log("Export started..."); // Debugging ke liye
+    // 1. Inputs Uthao
+    const term = document.getElementById('closedKitSearch').value.toLowerCase();
+    const start = document.getElementById('closedDateStart').value;
+    const end = document.getElementById('closedDateEnd').value;
+    const line = document.getElementById('closedLineFilter').value;
+    const type = document.getElementById('closedTypeFilter').value;
 
-    // 1. Data Check
-    const closed = kits.filter(k => k.status === 'Closed');
+    // 2. Filter Logic
+    const closed = kits.filter(k => 
+        k.status === 'Closed' && 
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
+        (!line || line === "" || k.line === line) &&
+        (!type || type === "" || (type === "Transferred" ? k.isTransferred : k.type === type))
+    );
+
     if (closed.length === 0) {
-        alert("No closed kits found to export!");
+        alert("No records match your filter!");
         return;
     }
 
-    // 2. Button ko feedback dene ke liye (Optional)
     const btn = document.getElementById('exportArchiveBtn');
     const oldText = btn.innerHTML;
     btn.innerText = "Downloading...";
 
     try {
-        // 3. CSV Header
-        let csv = "Kit ID,Model,Line,Start Date,Close Date,Duration (Days),Last Leader,Last PQC,Total Order Qty,Total Input,Final Packed,Rejection,Semi FG,Rework Pending,Status\n";
+        // HEADER MEIN "KIT TAG" ADD KIYA HAI
+        let csv = "Kit ID,Model,Line,Start Date,Close Date,Duration (Days),Last Leader,Last PQC,Total Order Qty,Total Input,Final Packed,Rejection,Semi FG,Rework Pending,Status,KIT TAG\n";
 
-        // 4. Data Loop
         const rows = closed.map(k => {
-            // Duration Calc
+            // --- TAG LOGIC START ---
+            let specialTag = "";
+            if (k.isTransferred) specialTag = "TRANSFERRED";
+            else if (k.type === "Final Unit") specialTag = "FINAL UNIT";
+            else specialTag = ""; // Parts ke liye blank
+            // --- TAG LOGIC END ---
+
             let duration = "1";
             if (k.createdDate && k.closedDate) {
                 const start = new Date(k.createdDate);
@@ -764,38 +787,33 @@ async function exportClosedKits() {
                 if(duration === 0) duration = 1;
             }
 
-            // Logs Check for Leader/PQC
-            // Hum productionLogs array se filter kar rahe hain
             const myLogs = productionLogs.filter(l => l.kitId === k.id);
             let lastLeader = "N/A";
             let lastPQC = "N/A";
             
             if (myLogs.length > 0) {
-                // Last entry uthao
                 const lastLog = myLogs[myLogs.length - 1]; 
                 lastLeader = lastLog.leader || "N/A";
                 lastPQC = lastLog.pqc || "N/A";
             }
 
-            // Row Generate
-            return `${k.id},${k.model},${k.line},${k.createdDate},${k.closedDate || 'N/A'},${duration} Days,${lastLeader},${lastPQC},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},Closed`;
+            return `${k.id},${k.model},${k.line},${k.createdDate},${k.closedDate || 'N/A'},${duration} Days,${lastLeader},${lastPQC},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},Closed,${specialTag}`;
         });
 
         csv += rows.join("\n");
 
-        // 5. Download
         const link = document.createElement("a");
         link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
-        link.download = `PrimeX_Archive_Full_${getLocalDateString()}.csv`;
+        link.download = `PrimeX_Closed_Report_${getLocalDateString()}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
     } catch (err) {
         console.error(err);
-        alert("Error exporting data. Check console.");
+        alert("Error exporting data.");
     } finally {
-        btn.innerHTML = oldText; // Button wapas normal karo
+        btn.innerHTML = oldText; 
     }
 }
 
@@ -837,23 +855,19 @@ window.shareKitWhatsApp = function(id) {
 function renderPendingKits() {
     const list = document.getElementById('pendingKitList');
     
-    // Inputs
     const term = document.getElementById('pendingKitSearch').value.toLowerCase();
     const start = document.getElementById('pendingDateStart').value;
     const end = document.getElementById('pendingDateEnd').value;
     const line = document.getElementById('pendingLineFilter').value;
-    
-    // NEW: Type Filter
     const type = document.getElementById('pendingTypeFilter').value;
 
-    // Filter Logic
     const filtered = kits.filter(k => 
         k.status === 'Active' && 
         isKitPending(k.createdDate) && 
         (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
         (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
-        (!line || line === "All Lines" || k.line === line) &&
-        (!type || type === "" || k.type === type) // <--- NEW CHECK
+        (!line || line === "" || k.line === line) && 
+        (!type || type === "" || (type === "Transferred" ? k.isTransferred : k.type === type))
     );
 
     list.innerHTML = '';
@@ -895,43 +909,54 @@ const pSearch = document.getElementById('pendingKitSearch');
 if(pSearch) pSearch.addEventListener('keyup', renderPendingKits);
 // --- NEW EXPORT FUNCTION FOR PENDING KITS (With Leader & PQC) ---
 window.exportPendingKits = function() {
-    // 1. Pending Kits filter karein
-    const pending = kits.filter(k => k.status === 'Active' && isKitPending(k.createdDate));
+    // 1. Inputs Uthao
+    const term = document.getElementById('pendingKitSearch').value.toLowerCase();
+    const start = document.getElementById('pendingDateStart').value;
+    const end = document.getElementById('pendingDateEnd').value;
+    const line = document.getElementById('pendingLineFilter').value;
+    const type = document.getElementById('pendingTypeFilter').value;
+
+    // 2. Filter Logic
+    const pending = kits.filter(k => 
+        k.status === 'Active' && 
+        isKitPending(k.createdDate) && 
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
+        (!line || line === "" || k.line === line) && 
+        (!type || type === "" || (type === "Transferred" ? k.isTransferred : k.type === type))
+    );
 
     if (pending.length === 0) {
-        alert("No pending kits to export!");
+        alert("No pending records match your filter!");
         return;
     }
 
-    // 2. CSV Header (Jo column chahiye wo yahan hain)
-    let csv = "Created Date,Line,Kit ID,Model,Last Leader,Last PQC,Total Qty,Input,Final Pack,Rejection,Semi FG,Rework,Remaining\n";
+    // HEADER MEIN "KIT TAG" ADD KIYA HAI
+    let csv = "Created Date,Line,Kit ID,Model,Last Leader,Last PQC,Total Qty,Input,Final Pack,Rejection,Semi FG,Rework,Remaining,KIT TAG\n";
 
-    // 3. Loop through kits and find details
     pending.forEach(k => {
-        // Kit ka Remaining calculate karein
+        // --- TAG LOGIC START ---
+        let specialTag = "";
+        if (k.isTransferred) specialTag = "TRANSFERRED";
+        else if (k.type === "Final Unit") specialTag = "FINAL UNIT";
+        else specialTag = ""; // Parts ke liye blank
+        // --- TAG LOGIC END ---
+
         const rem = k.totalQty - (k.packedQty + k.rejectionQty);
-        
-        // Logs check karke Last Leader aur PQC dhundein
-        // Hum saare logs filter karenge jo is Kit ID ke hain
         const kitLogs = productionLogs.filter(l => l.kitId === k.id);
         
-        // Agar logs hain, to sabse latest wala uthayenge
         let lastLeader = "N/A";
         let lastPQC = "N/A";
         
         if (kitLogs.length > 0) {
-            // Logs ko date ke hisaab se sort karein (Newest first) - assuming logs are pushed chronologically
-            // Ya agar timestamp hai to usse sort karein. Simple array reverse usually works if pushed in order.
             const latestLog = kitLogs[kitLogs.length - 1]; 
             lastLeader = latestLog.leader || "N/A";
             lastPQC = latestLog.pqc || "N/A";
         }
 
-        // CSV Row banana
-        csv += `${k.createdDate},${k.line},${k.id},${k.model},${lastLeader},${lastPQC},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},${rem}\n`;
+        csv += `${k.createdDate},${k.line},${k.id},${k.model},${lastLeader},${lastPQC},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},${rem},${specialTag}\n`;
     });
 
-    // 4. Download Trigger karein
     const link = document.createElement("a");
     link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
     link.download = `Pending_Kits_Report_${getLocalDateString()}.csv`;
@@ -973,7 +998,12 @@ window.closeKitAction = async function(id) {
             k.status = 'Closed';
             k.closedDate = getLocalDateString();
         }
-
+// Trigger Confetti
+confetti({
+    particleCount: 150,
+    spread: 70,
+    origin: { y: 0.6 }
+});
         alert("Kit Closed Successfully!");
         
         // View Refresh karo
@@ -985,4 +1015,49 @@ window.closeKitAction = async function(id) {
         console.error(e);
         alert("Error closing kit: " + e.message);
     }
+}
+window.exportActiveKits = function() {
+    // 1. Inputs Uthao
+    const term = document.getElementById('kitSearch').value.toLowerCase();
+    const start = document.getElementById('sidebarDateStart').value;
+    const end = document.getElementById('sidebarDateEnd').value;
+    const line = document.getElementById('sidebarLineFilter').value;
+    const type = document.getElementById('sidebarTypeFilter').value;
+
+    // 2. Filter Logic (Active Units ke liye)
+    const active = kits.filter(k => 
+        k.status === 'Active' && 
+        !isKitPending(k.createdDate) &&
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!start || k.createdDate >= start) && (!end || k.createdDate <= end) &&
+        (!line || line === "" || k.line === line) && 
+        (!type || type === "" || (type === "Transferred" ? k.isTransferred : k.type === type))
+    );
+
+    if (active.length === 0) {
+        alert("No active records match your filter!");
+        return;
+    }
+
+    let csv = "Created Date,Line,Kit ID,Model,Total Qty,Input,Final Pack,Rejection,Semi FG,Rework,Remaining,KIT TAG\n";
+
+    active.forEach(k => {
+        // --- TAG LOGIC START ---
+        let specialTag = "";
+        if (k.isTransferred) specialTag = "TRANSFERRED";
+        else if (k.type === "Final Unit") specialTag = "FINAL UNIT";
+        else specialTag = ""; 
+        // --- TAG LOGIC END ---
+
+        const rem = k.totalQty - (k.packedQty + k.rejectionQty);
+        
+        csv += `${k.createdDate},${k.line},${k.id},${k.model},${k.totalQty},${k.usedQty || 0},${k.packedQty},${k.rejectionQty},${k.semiQty || 0},${k.reworkQty || 0},${rem},${specialTag}\n`;
+    });
+
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = `Active_Kits_Report_${getLocalDateString()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
