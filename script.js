@@ -351,47 +351,53 @@ function renderManagerDetailCard(kit, card) {
         ? '' 
         : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
     // --- TABLE GENERATION START ---
+     // --- TABLE GENERATION START (FULL REMARKS FIX) ---
     let table = `
-    <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
-        <thead class="bg-slate-900 sticky top-0">
-            <tr>
-                <th class="p-2 w-20">DATE</th>
-                <th class="p-2 text-center">INPUT</th>
-                <th class="p-2 text-center text-green-400">FINAL</th>
-                <th class="p-2 text-center text-orange-400">SEMI</th>
-                <th class="p-2 text-center text-purple-400">REWORK</th>
-                <th class="p-2 text-center text-cyan-400">REM</th>
-                <th class="p-2 text-right text-red-400">REJ</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-white/5">`;
+    <div class="overflow-x-auto rounded-lg border border-white/5 mt-4">
+        <table class="min-w-full text-[10px] text-left text-slate-300 whitespace-nowrap">
+            <thead class="bg-slate-900 text-slate-500 font-bold uppercase sticky top-0 z-10">
+                <tr>
+                    <th class="p-3">Date</th>
+                    <th class="p-3 text-blue-400">Leader</th>
+                    <th class="p-3 text-indigo-400">PQC</th>
+                    <th class="p-3 text-center">In</th>
+                    <th class="p-3 text-center text-green-400">Pack</th>
+                    <th class="p-3 text-center text-orange-400">Semi</th>
+                    <th class="p-3 text-center text-purple-400">Rwk</th>
+                    <th class="p-3 text-center text-cyan-400">Rem</th>
+                    <th class="p-3 text-center text-red-400">Rej</th>
+                    <th class="p-3 text-slate-400 min-w-[200px]">Remarks</th> <!-- Min width increased -->
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 bg-slate-900/30">`;
 
     logs.forEach(l => {
-        // 🔥 MAGIC FIX: Agar Transfer entry hai (Leader = System), to special row dikhao
         if (l.leader === 'System' || (l.remarks && l.remarks.includes('Transferred'))) {
             table += `
-            <tr class="bg-orange-900/20 border-l-2 border-orange-500">
-                <td class="p-2 text-orange-400 font-mono align-top">${l.date}</td>
-                <!-- colspan="6" ka matlab baaki ke saare columns merge karke message dikhao -->
-                <td colspan="6" class="p-2 text-left text-orange-200 italic tracking-wide align-middle">
+            <tr class="bg-orange-900/10 border-l-2 border-orange-500">
+                <td class="p-3 text-orange-400 font-mono align-top">${l.date}</td>
+                <td colspan="9" class="p-3 text-left text-orange-300 italic tracking-wide whitespace-normal">
                     <i class="fas fa-exchange-alt mr-2"></i> ${l.remarks}
                 </td>
             </tr>`;
         } else {
-            // Normal Row
             table += `
-            <tr class="hover:bg-white/5 transition">
-                <td class="p-2 truncate">${l.date}</td>
-                <td class="p-2 text-center text-slate-400">${l.input||0}</td>
-                <td class="p-2 text-center text-green-400 font-bold">${l.output||0}</td>
-                <td class="p-2 text-center text-orange-400">${l.semi||0}</td>
-                <td class="p-2 text-center text-purple-400">${l.rework||0}</td>
-                <td class="p-2 text-center text-cyan-400 font-mono">${currentRem}</td>
-                <td class="p-2 text-right text-red-400 font-bold">${l.rejection||0}</td>
+            <tr class="hover:bg-white/5 transition border-l-2 border-transparent hover:border-blue-500">
+                <td class="p-3 font-mono text-slate-400 align-top">${l.date}</td>
+                <td class="p-3 text-blue-300 font-bold align-top">${l.leader || '-'}</td>
+                <td class="p-3 text-indigo-300 align-top">${l.pqc || '-'}</td>
+                <td class="p-3 text-center font-mono align-top">${l.input||0}</td>
+                <td class="p-3 text-center font-mono text-green-400 font-bold bg-green-900/10 rounded align-top">${l.output||0}</td>
+                <td class="p-3 text-center font-mono text-orange-400 align-top">${l.semi||0}</td>
+                <td class="p-3 text-center font-mono text-purple-400 align-top">${l.rework||0}</td>
+                <td class="p-3 text-center font-mono text-cyan-400 font-bold align-top">${currentRem}</td>
+                <td class="p-3 text-center font-mono text-red-400 font-bold bg-red-900/10 rounded align-top">${l.rejection||0}</td>
+                <!-- 👇 YAHAN CHANGE KIYA HAI (Whitespace normal se text wrap hoga) 👇 -->
+                <td class="p-3 text-slate-500 italic whitespace-normal break-words">${l.remarks || '-'}</td>
             </tr>`;
         }
     });
-    table += '</tbody></table>';
+    table += '</tbody></table></div>';
     // --- TABLE GENERATION END ---
 
     card.innerHTML = `
@@ -604,17 +610,20 @@ function updateManagerDashboard() {
         const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : '?';
         
         tbody.innerHTML += `
-            <tr class="hover:bg-white/5 transition">
-                <td class="px-4 py-2">${l.date}</td>
-                <td class="px-4">${l.line}</td>
-                <td class="px-4 font-bold text-white">${l.kitId}</td>
-                <td class="px-4">${l.model}</td>
-                <td class="px-4 text-right font-mono">${l.input || 0}</td>
-                <td class="px-4 text-right font-mono text-green-400">${l.output || 0}</td>
-                <td class="px-4 text-right font-mono text-orange-400">${l.semi || 0}</td>
-                <td class="px-4 text-right font-mono text-purple-400">${l.rework || 0}</td>
-                <td class="px-4 text-right font-mono text-cyan-400 font-bold">${rem}</td>
-                <td class="px-4 text-right font-mono text-red-400">${l.rejection || 0}</td> 
+            <tr class="hover:bg-white/5 transition border-l-2 border-transparent hover:border-blue-500">
+                <td class="px-4 py-3 font-mono text-slate-400 align-top">${l.date}</td>
+                <td class="px-4 py-3 align-top">${l.line}</td>
+                <td class="px-4 py-3 text-blue-300 font-bold align-top">${l.leader || '-'}</td> <!-- Leader Added -->
+                <td class="px-4 py-3 text-indigo-300 align-top">${l.pqc || '-'}</td>           <!-- PQC Added -->
+                <td class="px-4 py-3 font-bold text-white align-top">${l.kitId}</td>
+                <td class="px-4 py-3 text-xs align-top">${l.model}</td>
+                <td class="px-4 py-3 text-center font-mono align-top">${l.input || 0}</td>
+                <td class="px-4 py-3 text-center font-mono text-green-400 font-bold align-top">${l.output || 0}</td>
+                <td class="px-4 py-3 text-center font-mono text-orange-400 align-top">${l.semi || 0}</td>
+                <td class="px-4 py-3 text-center font-mono text-purple-400 align-top">${l.rework || 0}</td>
+                <td class="px-4 py-3 text-center font-mono text-cyan-400 font-bold align-top">${rem}</td>
+                <td class="px-4 py-3 text-center font-mono text-red-400 font-bold align-top">${l.rejection || 0}</td> 
+                <td class="px-4 py-3 text-slate-500 italic text-xs whitespace-normal break-words align-top max-w-xs">${l.remarks || '-'}</td> <!-- Remarks Added -->
             </tr>`;
     });
 }

@@ -143,20 +143,22 @@
 <!-- Table Container with Scroll Hint -->
 <div class="overflow-x-auto rounded border border-white/5 relative">
     <!-- Fading Edge Effect for Visual Hint -->
-    <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none md:hidden"></div>
                         <table class="min-w-full text-sm text-left text-slate-300 whitespace-nowrap">
-              <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-500">
+    <thead class="bg-slate-900/80 text-xs uppercase font-bold text-slate-500 sticky top-0 z-10">
     <tr>
         <th class="px-4 py-3">Date</th>
         <th class="px-4">Line</th>
+        <th class="px-4 text-blue-400">Leader</th> <!-- Added -->
+        <th class="px-4 text-indigo-400">PQC</th>    <!-- Added -->
         <th class="px-4">Kit ID</th>
         <th class="px-4">Model</th>
-        <th class="px-4 text-right">INPUT</th>
-        <th class="px-4 text-right text-green-400">FINAL PACK</th>
-        <th class="px-4 text-right text-orange-400">SEMI FG</th>
-        <th class="px-4 text-right text-purple-400">REWORK</th>
-        <th class="px-4 text-right text-cyan-400">REMAINING</th>
-        <th class="px-4 text-right text-red-400">REJECTION</th>
+        <th class="px-4 text-center">INPUT</th>
+        <th class="px-4 text-center text-green-400">PACK</th>
+        <th class="px-4 text-center text-orange-400">SEMI</th>
+        <th class="px-4 text-center text-purple-400">REWORK</th>
+        <th class="px-4 text-center text-cyan-400">REM</th>
+        <th class="px-4 text-center text-red-400">REJ</th>
+        <th class="px-4 min-w-[200px]">Remarks</th> <!-- Added -->
     </tr>
 </thead>
                             <tbody id="reportTableBody" class="divide-y divide-slate-800 font-mono text-xs"></tbody>
@@ -354,7 +356,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="text-center mt-8"><p class="text-[10px] text-slate-600 font-mono">© 2026/01 Developed by Sohail.</p></div>
+                <div class="text-center mt-8"><p class="text-[10px] text-slate-600 font-mono">© 26/01/2026 Developed by Sohail.</p></div>
             </div>
 
         </div>
