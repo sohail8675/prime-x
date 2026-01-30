@@ -8,6 +8,7 @@ let kits = [];
 let productionLogs = [];
 let currentUserRole = '';
 let currentView = 'loginSection';
+let tempSelectedLinks = []; // New variable for linking
 // NEW HELPER: Checks if kit is > 3 days old
 function isKitPending(dateString) {
     if(!dateString) return false;
@@ -66,18 +67,15 @@ window.switchView = function(viewId) {
     if(viewId === 'dashboardView' && (currentUserRole.includes('Manager') || currentUserRole.includes('Data'))) updateManagerDashboard();
 }
 
-// --- INIT ---
 // --- INIT (COMPLETE & FIXED) ---
 document.addEventListener('DOMContentLoaded', () => {
-  // --- ADD THIS AT THE BOTTOM OF DOMContentLoaded ---
-setInterval(() => {
+  // Time Update
+  setInterval(() => {
     const d = new Date();
     const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    // Agar dashboard me koi jagah banayi hai to wahan dikhao, nahi to Header me daal sakte ho
-    // Example: Agar header me koi element id="liveTimeDisplay" ho
     const display = document.getElementById('liveTimeDisplay');
     if(display) display.innerText = timeStr;
-}, 1000);  
+  }, 1000);  
 
     // 1. Menu Toggles
     const menuBtn = document.getElementById('menuBtn');
@@ -148,6 +146,32 @@ setInterval(() => {
     document.getElementById('cancelTransferBtn').addEventListener('click', () => document.getElementById('transferModal').classList.add('hidden'));
     document.getElementById('transferForm').addEventListener('submit', handleTransferKit);
     
+    // --- LINKING SYSTEM LISTENERS (NEW) ---
+    const linkTrigger = document.getElementById('linkedKitsTrigger');
+    if(linkTrigger) {
+        linkTrigger.addEventListener('click', openLinkModal);
+    }
+    const closeLink = document.getElementById('closeLinkModal');
+    if(closeLink) closeLink.addEventListener('click', () => document.getElementById('linkSelectionModal').classList.add('hidden'));
+
+    // Live Filters for Link Modal
+    ['linkFilterDate', 'linkFilterLine', 'linkFilterType', 'linkSearch'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+            el.addEventListener(id.includes('Search')?'keyup':'change', renderLinkableKits);
+        }
+    });
+
+    const confirmLink = document.getElementById('confirmLinksBtn');
+    if(confirmLink) confirmLink.addEventListener('click', saveLinkedKits);
+
+    const clearLink = document.getElementById('clearLinksBtn');
+    if(clearLink) clearLink.addEventListener('click', () => {
+        tempSelectedLinks = [];
+        renderLinkableKits();
+        updateLinkCount();
+    });
+
     // 6. Dashboard Filters
     document.getElementById('applyFilter').addEventListener('click', updateManagerDashboard);
     
@@ -176,13 +200,16 @@ setInterval(() => {
     });
 
 });
-
 async function initializeData() {
     try {
         const kSnap = await getDocs(collection(db, "kits"));
-        kits = []; kSnap.forEach(d => kits.push(d.data()));
+        kits = []; 
+        kSnap.forEach(d => kits.push(d.data())); // Kits ka ID data ke andar hi hai
+        
         const lSnap = await getDocs(collection(db, "productionLogs"));
-        productionLogs = []; lSnap.forEach(d => productionLogs.push(d.data()));
+        productionLogs = []; 
+        // 🔴 CHANGE: Ab hum Log ka asli FireStore ID bhi save kar rahe hain taaki edit kar sakein
+        lSnap.forEach(d => productionLogs.push({ id: d.id, ...d.data() })); 
     } catch(e) { console.error(e); }
 }
 
@@ -303,15 +330,17 @@ function openKitAction(kit) {
 }
 
 function renderManagerDetailCard(kit, card) {
-    // Sirf is kit ke logs uthao
     const logs = productionLogs.filter(l => l.kitId === kit.id).reverse();
-    
-    // Progress Bar Calcs
     const totalDone = kit.packedQty + kit.rejectionQty;
     const progress = Math.min((totalDone/kit.totalQty)*100, 100);
     const currentRem = kit.totalQty - totalDone;
     
-    // Date Logic
+    // --- 🔴 NEW: EDIT KIT DATE BUTTON (Only for Data Incharge) ---
+    let kitDateEditBtn = '';
+    if(currentUserRole === 'Data Incharge') {
+        kitDateEditBtn = `<button onclick="editKitDate('${kit.id}', '${kit.createdDate}')" class="ml-2 text-xs text-blue-500 hover:text-white bg-blue-900/20 px-1 rounded border border-blue-500/30" title="Edit Date"><i class="fas fa-pencil-alt"></i></button>`;
+    }
+
     let dateDisplayHtml = '';
     if (kit.status === 'Closed') {
         const start = new Date(kit.createdDate);
@@ -322,7 +351,7 @@ function renderManagerDetailCard(kit, card) {
 
         dateDisplayHtml = `
             <div class="flex items-center gap-2 text-[10px] bg-slate-900/80 p-1.5 rounded-lg border border-white/10 mt-1">
-                <span class="text-slate-500">${kit.createdDate}</span>
+                <span class="text-slate-500">${kit.createdDate}</span> ${kitDateEditBtn}
                 <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
                 <span class="text-yellow-400 font-bold bg-yellow-900/20 px-1 rounded border border-yellow-500/30">${totalDays} Days</span>
                 <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
@@ -330,15 +359,28 @@ function renderManagerDetailCard(kit, card) {
             </div>
         `;
     } else {
-        dateDisplayHtml = `<span class="text-[10px] text-slate-500"><i class="far fa-calendar-alt ml-1"></i> ${kit.createdDate}</span>`;
+        dateDisplayHtml = `<span class="text-[10px] text-slate-500 flex items-center"><i class="far fa-calendar-alt mr-1"></i> ${kit.createdDate} ${kitDateEditBtn}</span>`;
     }
 
-    // Badge Logic
     const typeBadge = kit.type === 'Final Unit' 
         ? '<span class="bg-green-900/50 text-green-400 px-2 rounded text-[10px] border border-green-500/30">FINAL</span>' 
         : '<span class="bg-yellow-900/50 text-yellow-400 px-2 rounded text-[10px] border border-yellow-500/30">PART</span>';
     
-    // Buttons Logic
+    let linkedHtml = '';
+    if (kit.linkedKits && kit.linkedKits.length > 0) {
+        const links = kit.linkedKits.split(',');
+        linkedHtml = `
+            <div class="mt-2">
+                <button onclick="document.getElementById('linkedList-${kit.id}').classList.toggle('hidden')" class="text-[10px] bg-indigo-900/30 text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded hover:bg-indigo-900/50 transition flex items-center gap-1 w-full justify-center">
+                    <i class="fas fa-link"></i> ${links.length} Linked Kits Connected
+                </button>
+                <div id="linkedList-${kit.id}" class="hidden mt-1 p-2 bg-slate-900 rounded border border-white/5 space-y-1">
+                    ${links.map(lid => `<div class="text-[10px] text-slate-300 font-mono border-b border-white/5 pb-1 last:border-0"><i class="fas fa-angle-right text-indigo-500 mr-1"></i> ${lid}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     const isComplete = totalDone >= kit.totalQty;
     let closeBtn = kit.status === 'Closed' 
         ? `<button class="flex-1 bg-slate-800 text-slate-500 py-2 rounded text-xs cursor-default">Completed & Locked</button>`
@@ -346,59 +388,55 @@ function renderManagerDetailCard(kit, card) {
             ? `<button onclick="closeKitAction('${kit.id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 py-2 rounded text-xs border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition font-bold"><i class="fas fa-check-circle mr-1"></i> Mark as Completed</button>` 
             : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`);
 
-       // Agar Kit Closed hai YA User Manager hai, to button mat dikhao
     const transferBtn = (kit.status === 'Closed' || currentUserRole === 'Manager') 
         ? '' 
         : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
-    // --- TABLE GENERATION START ---
-     // --- TABLE GENERATION START (FULL REMARKS FIX) ---
+
     let table = `
-    <div class="overflow-x-auto rounded-lg border border-white/5 mt-4">
-        <table class="min-w-full text-[10px] text-left text-slate-300 whitespace-nowrap">
-            <thead class="bg-slate-900 text-slate-500 font-bold uppercase sticky top-0 z-10">
-                <tr>
-                    <th class="p-3">Date</th>
-                    <th class="p-3 text-blue-400">Leader</th>
-                    <th class="p-3 text-indigo-400">PQC</th>
-                    <th class="p-3 text-center">In</th>
-                    <th class="p-3 text-center text-green-400">Pack</th>
-                    <th class="p-3 text-center text-orange-400">Semi</th>
-                    <th class="p-3 text-center text-purple-400">Rwk</th>
-                    <th class="p-3 text-center text-cyan-400">Rem</th>
-                    <th class="p-3 text-center text-red-400">Rej</th>
-                    <th class="p-3 text-slate-400 min-w-[200px]">Remarks</th> <!-- Min width increased -->
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5 bg-slate-900/30">`;
+    <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
+        <thead class="bg-slate-900 sticky top-0">
+            <tr>
+                <th class="p-2 w-24">DATE</th>
+                <th class="p-2 text-center">INPUT</th>
+                <th class="p-2 text-center text-green-400">FINAL</th>
+                <th class="p-2 text-center text-orange-400">SEMI</th>
+                <th class="p-2 text-center text-purple-400">REWORK</th>
+                <th class="p-2 text-center text-cyan-400">REM</th>
+                <th class="p-2 text-right text-red-400">REJ</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">`;
 
     logs.forEach(l => {
+        // --- 🔴 NEW: EDIT LOG DATE BUTTON (Only for Data Incharge) ---
+        let logDateEditBtn = '';
+        if(currentUserRole === 'Data Incharge') {
+            // Hum Log ID pass kar rahe hain edit function ko
+            logDateEditBtn = `<button onclick="editLogDate('${l.id}', '${l.date}', '${kit.id}')" class="ml-1 text-slate-500 hover:text-blue-400"><i class="fas fa-pen text-[8px]"></i></button>`;
+        }
+
         if (l.leader === 'System' || (l.remarks && l.remarks.includes('Transferred'))) {
             table += `
-            <tr class="bg-orange-900/10 border-l-2 border-orange-500">
-                <td class="p-3 text-orange-400 font-mono align-top">${l.date}</td>
-                <td colspan="9" class="p-3 text-left text-orange-300 italic tracking-wide whitespace-normal">
+            <tr class="bg-orange-900/20 border-l-2 border-orange-500">
+                <td class="p-2 text-orange-400 font-mono align-top">${l.date} ${logDateEditBtn}</td>
+                <td colspan="6" class="p-2 text-left text-orange-200 italic tracking-wide align-middle">
                     <i class="fas fa-exchange-alt mr-2"></i> ${l.remarks}
                 </td>
             </tr>`;
         } else {
             table += `
-            <tr class="hover:bg-white/5 transition border-l-2 border-transparent hover:border-blue-500">
-                <td class="p-3 font-mono text-slate-400 align-top">${l.date}</td>
-                <td class="p-3 text-blue-300 font-bold align-top">${l.leader || '-'}</td>
-                <td class="p-3 text-indigo-300 align-top">${l.pqc || '-'}</td>
-                <td class="p-3 text-center font-mono align-top">${l.input||0}</td>
-                <td class="p-3 text-center font-mono text-green-400 font-bold bg-green-900/10 rounded align-top">${l.output||0}</td>
-                <td class="p-3 text-center font-mono text-orange-400 align-top">${l.semi||0}</td>
-                <td class="p-3 text-center font-mono text-purple-400 align-top">${l.rework||0}</td>
-                <td class="p-3 text-center font-mono text-cyan-400 font-bold align-top">${currentRem}</td>
-                <td class="p-3 text-center font-mono text-red-400 font-bold bg-red-900/10 rounded align-top">${l.rejection||0}</td>
-                <!-- 👇 YAHAN CHANGE KIYA HAI (Whitespace normal se text wrap hoga) 👇 -->
-                <td class="p-3 text-slate-500 italic whitespace-normal break-words">${l.remarks || '-'}</td>
+            <tr class="hover:bg-white/5 transition">
+                <td class="p-2 truncate font-mono">${l.date} ${logDateEditBtn}</td>
+                <td class="p-2 text-center text-slate-400">${l.input||0}</td>
+                <td class="p-2 text-center text-green-400 font-bold">${l.output||0}</td>
+                <td class="p-2 text-center text-orange-400">${l.semi||0}</td>
+                <td class="p-2 text-center text-purple-400">${l.rework||0}</td>
+                <td class="p-2 text-center text-cyan-400 font-mono">${currentRem}</td>
+                <td class="p-2 text-right text-red-400 font-bold">${l.rejection||0}</td>
             </tr>`;
         }
     });
-    table += '</tbody></table></div>';
-    // --- TABLE GENERATION END ---
+    table += '</tbody></table>';
 
     card.innerHTML = `
         <div class="flex justify-between items-start mb-4">
@@ -417,13 +455,12 @@ function renderManagerDetailCard(kit, card) {
             <div class="text-right space-y-1">
                 ${typeBadge}
                 <div class="text-[10px] text-slate-500 uppercase tracking-widest">${kit.status}</div>
+                ${linkedHtml}
             </div>
         </div>
-
         <div class="w-full bg-slate-800 h-2 rounded-full mb-6 overflow-hidden border border-white/5">
             <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" style="width:${progress}%"></div>
         </div>
-
         <div class="grid grid-cols-3 gap-2 text-center mb-6">
             <div class="bg-slate-800/80 p-2 rounded border border-white/5 relative group">
                 ${kit.status === 'Active' ? `<button onclick="editKitTotal('${kit.id}', ${kit.totalQty})" class="absolute top-1 right-1 text-slate-600 hover:text-blue-400"><i class="fas fa-edit text-[10px]"></i></button>` : ''}
@@ -436,12 +473,10 @@ function renderManagerDetailCard(kit, card) {
             <div class="bg-slate-800/80 p-2 rounded border border-purple-500/20"><p class="text-[10px] text-slate-400 uppercase">Rework</p><b class="text-purple-400 text-lg">${kit.reworkQty || 0}</b></div>
             <div class="bg-slate-800/80 p-2 rounded border border-red-500/20"><p class="text-[10px] text-slate-400 uppercase">Reject</p><b class="text-red-400 text-lg">${kit.rejectionQty}</b></div>
         </div>
-
         <div class="bg-slate-900/50 p-3 rounded-xl border border-white/10 flex justify-between items-center mb-4">
             <span class="text-xs text-slate-400 font-bold uppercase">Balance Remaining</span>
             <span class="text-2xl font-mono font-bold text-cyan-400">${currentRem}</span>
         </div>
-        
         <div class="flex gap-2 mb-4">
              ${transferBtn}
              <button onclick="shareKitWhatsApp('${kit.id}')" class="flex-1 bg-green-900/20 text-green-400 py-2 rounded text-xs border border-green-500/30 hover:bg-green-600 hover:text-white transition font-bold flex items-center justify-center gap-2">
@@ -449,7 +484,6 @@ function renderManagerDetailCard(kit, card) {
              </button>
              ${closeBtn}
         </div>
-
         <div class="mt-4 pt-4 border-t border-white/5">
             <p class="text-[10px] text-slate-500 mb-2 uppercase font-bold">Production History</p>
             <div class="overflow-y-auto max-h-40 custom-scrollbar border border-white/5 rounded bg-darker/30">
@@ -458,8 +492,6 @@ function renderManagerDetailCard(kit, card) {
         </div>
     `;
 }
-
-
 function setupLeaderForm(kit, formContainer) {
     const form = formContainer.querySelector('form');
     form.querySelector('[name="entryDate"]').value = getLocalDateString();
@@ -563,67 +595,89 @@ function setupLeaderForm(kit, formContainer) {
     };
 }
 
-// --- FIXED MANAGER DASHBOARD ---
+// --- FIXED DASHBOARD FILTER LOGIC ---
 function updateManagerDashboard() {
+    // 1. Inputs Uthao
     const start = document.getElementById('filterStartDate').value;
     const end = document.getElementById('filterEndDate').value;
-    const line = document.getElementById('filterLine').value;
+    const lineVal = document.getElementById('filterLine').value; 
+    
+    // Check karo "All" hai ya Specific Line
+    // (HTML mein <option value="All"> hai, kabhi kabhi browser 'All Lines' bhej deta hai, isliye safe check)
+    const line = (lineVal === "All" || lineVal === "All Lines" || lineVal === "") ? null : lineVal;
 
-    const logs = productionLogs.filter(l => 
-        (!start || l.date >= start) && (!end || l.date <= end) &&
-        (!line || line === "All" || l.line === line)
-    );
-
-    let inp=0, finalPacked=0, rej=0, semi=0, rwPending=0, totalRem=0;
-
-    // 1. Logs Loop (Sab Output ko 'FinalPacked' mein jod rahe hain)
-    logs.forEach(l => {
-        inp += l.input || 0;
-        finalPacked += l.output || 0; // Ab Part ho ya Final, sab yahan judega
-        rej += l.rejection || 0; 
-        semi += l.semi || 0;
+    // 2. Logs Filter karo (Table aur Output stats ke liye)
+    // Ye Date aur Line DONO check karega
+    const filteredLogs = productionLogs.filter(l => {
+        const dateMatch = (!start || l.date >= start) && (!end || l.date <= end);
+        const lineMatch = (!line || l.line === line);
+        return dateMatch && lineMatch;
     });
 
-    // 2. Active Kits Loop (Rework aur Remaining ke liye)
-    kits.filter(k => k.status === 'Active' && (!line || line === "All" || k.line === line)).forEach(k => {
-        rwPending += k.reworkQty || 0;
-        totalRem += (k.totalQty - (k.packedQty + k.rejectionQty));
+    // 3. Kits Filter karo (Remaining aur Rework stats ke liye)
+    // Note: Active Kits par Date filter lagana sahi nahi hota, kyunki kit 3 din purani ho sakti hai par aaj bhi active hai.
+    // Isliye hum yahan sirf LINE check karenge aur Status check karenge.
+    const filteredKits = kits.filter(k => {
+        const statusMatch = k.status === 'Active';
+        const lineMatch = (!line || k.line === line);
+        return statusMatch && lineMatch;
     });
 
-    // 3. Update Cards
+    // 4. Calculation Variables
+    let inp = 0, out = 0, rej = 0, semi = 0, rw = 0, rem = 0;
+
+    // A. Logs se Jodo (Input, Packed, Reject, Semi)
+    filteredLogs.forEach(l => {
+        inp += (parseInt(l.input) || 0);
+        out += (parseInt(l.output) || 0);
+        rej += (parseInt(l.rejection) || 0);
+        semi += (parseInt(l.semi) || 0);
+        // Rework log se nahi, kit se uthayenge kyunki wo pending status hai
+    });
+
+    // B. Kits se Jodo (Rework Pending, Balance Remaining)
+    filteredKits.forEach(k => {
+        rw += (parseInt(k.reworkQty) || 0);
+        // Remaining Logic: Total - (Packed + Reject)
+        const currentRem = k.totalQty - (k.packedQty + k.rejectionQty);
+        rem += Math.max(0, currentRem); // Negative na ho jaye
+    });
+
+    // 5. Cards Update Karo
     document.getElementById('statInput').innerText = inp;
-    document.getElementById('statPacked').innerText = finalPacked;
+    document.getElementById('statPacked').innerText = out;
     document.getElementById('statRejection').innerText = rej;
     document.getElementById('statSemi').innerText = semi;
-    document.getElementById('statReworkPending').innerText = rwPending;
-    
-    // Kit Remaining Card Update
-    const remEl = document.getElementById('statKitRemaining');
-    if(remEl) remEl.innerText = totalRem;
-    
-    // 4. Update Table
+    document.getElementById('statReworkPending').innerText = rw;
+    document.getElementById('statKitRemaining').innerText = rem;
+
+    // 6. Table Update Karo
     const tbody = document.getElementById('reportTableBody'); 
-    tbody.innerHTML='';
+    tbody.innerHTML = '';
     
-    logs.slice(0,50).forEach(l => {
+    if(filteredLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center p-4 text-slate-500 text-xs">No records found for this filter.</td></tr>';
+        return;
+    }
+
+    // Logs ko reverse karo (Latest pehle)
+    filteredLogs.slice().reverse().forEach(l => {
+        // Kit dhoondho taaki Table mein bhi Remaining dikha sakein
         const k = kits.find(kt => kt.id === l.kitId);
-        const rem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : '?';
+        const rowRem = k ? (k.totalQty - (k.packedQty + k.rejectionQty)) : '-';
         
         tbody.innerHTML += `
-            <tr class="hover:bg-white/5 transition border-l-2 border-transparent hover:border-blue-500">
-                <td class="px-4 py-3 font-mono text-slate-400 align-top">${l.date}</td>
-                <td class="px-4 py-3 align-top">${l.line}</td>
-                <td class="px-4 py-3 text-blue-300 font-bold align-top">${l.leader || '-'}</td> <!-- Leader Added -->
-                <td class="px-4 py-3 text-indigo-300 align-top">${l.pqc || '-'}</td>           <!-- PQC Added -->
-                <td class="px-4 py-3 font-bold text-white align-top">${l.kitId}</td>
-                <td class="px-4 py-3 text-xs align-top">${l.model}</td>
-                <td class="px-4 py-3 text-center font-mono align-top">${l.input || 0}</td>
-                <td class="px-4 py-3 text-center font-mono text-green-400 font-bold align-top">${l.output || 0}</td>
-                <td class="px-4 py-3 text-center font-mono text-orange-400 align-top">${l.semi || 0}</td>
-                <td class="px-4 py-3 text-center font-mono text-purple-400 align-top">${l.rework || 0}</td>
-                <td class="px-4 py-3 text-center font-mono text-cyan-400 font-bold align-top">${rem}</td>
-                <td class="px-4 py-3 text-center font-mono text-red-400 font-bold align-top">${l.rejection || 0}</td> 
-                <td class="px-4 py-3 text-slate-500 italic text-xs whitespace-normal break-words align-top max-w-xs">${l.remarks || '-'}</td> <!-- Remarks Added -->
+            <tr class="hover:bg-white/5 transition border-b border-white/5">
+                <td class="px-4 py-2 font-mono text-[10px] text-slate-300">${l.date}</td>
+                <td class="px-4 text-[10px]">${l.line}</td>
+                <td class="px-4 font-bold text-white text-xs">${l.kitId}</td>
+                <td class="px-4 text-[10px] text-slate-400 font-mono">${l.model}</td>
+                <td class="px-4 text-right font-mono text-xs">${l.input || 0}</td>
+                <td class="px-4 text-right font-mono text-xs text-green-400 font-bold">${l.output || 0}</td>
+                <td class="px-4 text-right font-mono text-xs text-orange-400">${l.semi || 0}</td>
+                <td class="px-4 text-right font-mono text-xs text-purple-400">${l.rework || 0}</td>
+                <td class="px-4 text-right font-mono text-xs text-cyan-400">${rowRem}</td>
+                <td class="px-4 text-right font-mono text-xs text-red-400 font-bold">${l.rejection || 0}</td> 
             </tr>`;
     });
 }
@@ -1069,4 +1123,280 @@ window.exportActiveKits = function() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    // --- NEW LINKING SYSTEM LOGIC ---
+
+function openLinkModal() {
+    // Reset or Load existing
+    const currentVal = document.getElementById('linkedKitsInput').value;
+    tempSelectedLinks = currentVal ? currentVal.split(',') : [];
+    
+    document.getElementById('linkSelectionModal').classList.remove('hidden');
+    renderLinkableKits();
+    updateLinkCount();
+}
+
+function renderLinkableKits() {
+    const list = document.getElementById('linkableKitsList');
+    list.innerHTML = '';
+
+    const term = document.getElementById('linkSearch').value.toLowerCase();
+    const date = document.getElementById('linkFilterDate').value;
+    const line = document.getElementById('linkFilterLine').value;
+    const type = document.getElementById('linkFilterType').value;
+
+    // Filter Active Kits (Includes Pending automatically as they are status='Active')
+    const candidates = kits.filter(k => 
+        k.status === 'Active' &&
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!date || k.createdDate === date) &&
+        (!line || k.line === line) &&
+        (!type || k.type === type)
+    );
+
+    if(candidates.length === 0) {
+        list.innerHTML = '<div class="text-center text-slate-500 py-10">No kits found to link.</div>';
+        return;
+    }
+
+    candidates.forEach(k => {
+        const isSelected = tempSelectedLinks.includes(k.id);
+        const div = document.createElement('div');
+        // Styling similar to kit item but smaller
+        div.className = `p-3 rounded-lg border ${isSelected ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-800 border-white/5'} hover:border-blue-500/50 cursor-pointer flex justify-between items-center transition-all`;
+        
+        div.onclick = () => toggleLinkSelection(k.id);
+
+        div.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-5 h-5 rounded border ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-500'} flex items-center justify-center">
+                    ${isSelected ? '<i class="fas fa-check text-white text-xs"></i>' : ''}
+                </div>
+                <div>
+                    <div class="text-sm font-bold text-slate-200">${k.id}</div>
+                    <div class="text-[10px] text-slate-400">${k.model} | ${k.line}</div>
+                </div>
+            </div>
+            <div class="text-[10px] text-slate-500">${k.createdDate}</div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function toggleLinkSelection(id) {
+    if(tempSelectedLinks.includes(id)) {
+        tempSelectedLinks = tempSelectedLinks.filter(x => x !== id);
+    } else {
+        if(tempSelectedLinks.length >= 5) {
+            alert("Maximum 5 kits can be linked!");
+            return;
+        }
+        tempSelectedLinks.push(id);
+    }
+    renderLinkableKits();
+    updateLinkCount();
+}
+
+function updateLinkCount() {
+    const count = tempSelectedLinks.length;
+    const el = document.getElementById('linkCountDisplay');
+    el.innerText = `${count} / 5 Selected`;
+    el.className = count === 5 ? "text-red-400 font-bold font-mono text-sm mr-4" : "text-cyan-400 font-bold font-mono text-sm mr-4";
+}
+
+function saveLinkedKits() {
+    const input = document.getElementById('linkedKitsInput');
+    const trigger = document.getElementById('linkedKitsTrigger');
+    
+    input.value = tempSelectedLinks.join(',');
+    
+    if(tempSelectedLinks.length > 0) {
+        trigger.innerHTML = `<span class="text-blue-400 font-bold">${tempSelectedLinks.length} Kits Linked</span> <i class="fas fa-check-circle text-blue-500"></i>`;
+        trigger.classList.add('border-blue-500');
+    } else {
+        trigger.innerHTML = `<span>Select Kits to Link...</span> <i class="fas fa-link"></i>`;
+        trigger.classList.remove('border-blue-500');
+    }
+    
+    document.getElementById('linkSelectionModal').classList.add('hidden');
+}
+}
+// --- NEW LINKING SYSTEM LOGIC (START) ---
+
+// 1. Popup Kholne wala function
+function openLinkModal() {
+    // Check karo pehle se kuch select hai kya
+    const inputVal = document.getElementById('linkedKitsInput').value;
+    // Global variable update karo
+    tempSelectedLinks = inputVal ? inputVal.split(',') : [];
+    
+    // Modal dikhao
+    const modal = document.getElementById('linkSelectionModal');
+    if(modal) {
+        modal.classList.remove('hidden');
+        renderLinkableKits(); // List load karo
+        updateLinkCount();    // Count update karo
+    } else {
+        console.error("Link Modal HTML not found!");
+    }
+}
+
+// 2. List Dikhane wala function
+function renderLinkableKits() {
+    const list = document.getElementById('linkableKitsList');
+    if(!list) return;
+    
+    list.innerHTML = '';
+
+    const term = document.getElementById('linkSearch').value.toLowerCase();
+    const date = document.getElementById('linkFilterDate').value;
+    const line = document.getElementById('linkFilterLine').value;
+    const type = document.getElementById('linkFilterType').value;
+
+    // Filter Logic: Active Kits + Filters
+    const candidates = kits.filter(k => 
+        k.status === 'Active' &&
+        (k.id.toLowerCase().includes(term) || k.model.toLowerCase().includes(term)) &&
+        (!date || k.createdDate === date) &&
+        (!line || k.line === line) &&
+        (!type || k.type === type)
+    );
+
+    if(candidates.length === 0) {
+        list.innerHTML = '<div class="text-center text-slate-500 py-10">No kits found to link.</div>';
+        return;
+    }
+
+    candidates.forEach(k => {
+        const isSelected = tempSelectedLinks.includes(k.id);
+        const div = document.createElement('div');
+        
+        // Styling
+        div.className = `p-3 rounded-lg border ${isSelected ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-800 border-white/5'} hover:border-blue-500/50 cursor-pointer flex justify-between items-center transition-all`;
+        
+        // Click karne par select/deselect hoga
+        div.onclick = () => toggleLinkSelection(k.id);
+
+        div.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-5 h-5 rounded border ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-500'} flex items-center justify-center">
+                    ${isSelected ? '<i class="fas fa-check text-white text-xs"></i>' : ''}
+                </div>
+                <div>
+                    <div class="text-sm font-bold text-slate-200">${k.id}</div>
+                    <div class="text-[10px] text-slate-400">${k.model} | ${k.line}</div>
+                </div>
+            </div>
+            <div class="text-[10px] text-slate-500">${k.createdDate}</div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+// 3. Selection Toggle Function
+function toggleLinkSelection(id) {
+    if(tempSelectedLinks.includes(id)) {
+        // Agar pehle se hai to hata do
+        tempSelectedLinks = tempSelectedLinks.filter(x => x !== id);
+    } else {
+        // Agar naya hai to add karo (Max 5 check)
+        if(tempSelectedLinks.length >= 5) {
+            alert("Maximum 5 kits can be linked!");
+            return;
+        }
+        tempSelectedLinks.push(id);
+    }
+    renderLinkableKits(); // List refresh
+    updateLinkCount();    // Text refresh
+}
+
+// 4. Update Count Text
+function updateLinkCount() {
+    const count = tempSelectedLinks.length;
+    const el = document.getElementById('linkCountDisplay');
+    if(el) {
+        el.innerText = `${count} / 5 Selected`;
+        el.className = count === 5 ? "text-red-400 font-bold font-mono text-sm mr-4" : "text-cyan-400 font-bold font-mono text-sm mr-4";
+    }
+}
+
+// 5. Confirm Button Click
+function saveLinkedKits() {
+    const input = document.getElementById('linkedKitsInput');
+    const trigger = document.getElementById('linkedKitsTrigger');
+    
+    // Input value set karo (Form isko use karega)
+    input.value = tempSelectedLinks.join(',');
+    
+    // Trigger box ka design badlo taaki user ko dikhe ki select ho gaya
+    if(tempSelectedLinks.length > 0) {
+        trigger.innerHTML = `<span class="text-blue-400 font-bold">${tempSelectedLinks.length} Kits Linked</span> <i class="fas fa-check-circle text-blue-500"></i>`;
+        trigger.classList.add('border-blue-500');
+    } else {
+        trigger.innerHTML = `<span>Select Kits to Link...</span> <i class="fas fa-link"></i>`;
+        trigger.classList.remove('border-blue-500');
+    }
+    
+    // Modal band karo
+    document.getElementById('linkSelectionModal').classList.add('hidden');
+}
+// --- NEW LINKING SYSTEM LOGIC (END) ---
+// --- NEW DATE EDITING FUNCTIONS (ONLY FOR DATA INCHARGE) ---
+
+// 1. KIT KI CREATION DATE CHANGE KARNA
+window.editKitDate = async function(kitId, oldDate) {
+    // Sirf Data Incharge allow hai (Double check)
+    if(currentUserRole !== 'Data Incharge') return alert("Access Denied");
+
+    const newDate = prompt(`Change Start Date for ${kitId}:`, oldDate);
+    
+    // Agar cancel kiya ya same date hai to kuch mat karo
+    if(newDate === null || newDate === oldDate || newDate === "") return;
+
+    if(confirm(`Update Creation Date from ${oldDate} to ${newDate}?`)) {
+        try {
+            // Firebase Update
+            await updateDoc(doc(db, "kits", kitId), { createdDate: newDate });
+            
+            // Local Update
+            const k = kits.find(x => x.id === kitId);
+            if(k) k.createdDate = newDate;
+            
+            // Refresh View
+            openKitAction(k);
+            alert("Date Updated Successfully!");
+        } catch(e) {
+            console.error(e);
+            alert("Error updating date: " + e.message);
+        }
+    }
+}
+
+// 2. PRODUCTION LOG KI DATE CHANGE KARNA
+window.editLogDate = async function(logId, oldDate, kitId) {
+    if(currentUserRole !== 'Data Incharge') return alert("Access Denied");
+    if(!logId) return alert("Error: Log ID not found. Please refresh page.");
+
+    const newDate = prompt("Change Production Log Date:", oldDate);
+    
+    if(newDate === null || newDate === oldDate || newDate === "") return;
+
+    if(confirm(`Update Log Date from ${oldDate} to ${newDate}?`)) {
+        try {
+            // Firebase Update
+            await updateDoc(doc(db, "productionLogs", logId), { date: newDate });
+
+            // Local Update
+            const log = productionLogs.find(l => l.id === logId);
+            if(log) log.date = newDate;
+
+            // Refresh View
+            const k = kits.find(x => x.id === kitId);
+            if(k) openKitAction(k);
+            
+            alert("Log Date Updated!");
+        } catch(e) {
+            console.error(e);
+            alert("Error updating log: " + e.message);
+        }
+    }
 }
