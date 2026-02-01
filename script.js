@@ -329,168 +329,73 @@ function openKitAction(kit) {
     switchView('detailsView');
 }
 
-function renderManagerDetailCard(kit, card) {
-    const logs = productionLogs.filter(l => l.kitId === kit.id).reverse();
-    const totalDone = kit.packedQty + kit.rejectionQty;
-    const progress = Math.min((totalDone/kit.totalQty)*100, 100);
-    const currentRem = kit.totalQty - totalDone;
+// --- 🗑️ NEW DELETE FUNCTION (Copy at bottom of script.js) ---
+window.deleteLogEntry = async function(logId, kitId) {
+    // 1. Permission Check
+    if(currentUserRole !== 'Data Incharge') return alert("Access Denied: Only Data Incharge can delete logs.");
     
-    // --- 🔴 NEW: EDIT KIT DATE BUTTON (Only for Data Incharge) ---
-    let kitDateEditBtn = '';
-    if(currentUserRole === 'Data Incharge') {
-        kitDateEditBtn = `<button onclick="editKitDate('${kit.id}', '${kit.createdDate}')" class="ml-2 text-xs text-blue-500 hover:text-white bg-blue-900/20 px-1 rounded border border-blue-500/30" title="Edit Date"><i class="fas fa-pencil-alt"></i></button>`;
-    }
+    // 2. Confirmation
+    if(!confirm("⚠️ DANGER ZONE!\nAre you sure you want to PERMANENTLY DELETE this entry?\n\nThis will reverse the Input, Output, and Rejection counts from the Kit.")) return;
 
-    let dateDisplayHtml = '';
-    if (kit.status === 'Closed') {
-        const start = new Date(kit.createdDate);
-        const end = kit.closedDate ? new Date(kit.closedDate) : new Date(); 
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        const totalDays = diffDays === 0 ? 1 : diffDays;
+    try {
+        // 3. Log dhoondo (Data nikalne ke liye)
+        const log = productionLogs.find(l => l.id === logId);
+        if(!log) throw new Error("Log data not found locally. Please refresh.");
 
-        dateDisplayHtml = `
-            <div class="flex items-center gap-2 text-[10px] bg-slate-900/80 p-1.5 rounded-lg border border-white/10 mt-1">
-                <span class="text-slate-500">${kit.createdDate}</span> ${kitDateEditBtn}
-                <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
-                <span class="text-yellow-400 font-bold bg-yellow-900/20 px-1 rounded border border-yellow-500/30">${totalDays} Days</span>
-                <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
-                <span class="text-slate-500">${kit.closedDate || 'Today'}</span>
-            </div>
-        `;
-    } else {
-        dateDisplayHtml = `<span class="text-[10px] text-slate-500 flex items-center"><i class="far fa-calendar-alt mr-1"></i> ${kit.createdDate} ${kitDateEditBtn}</span>`;
-    }
+        // 4. Kit dhoondo (Update karne ke liye)
+        const kit = kits.find(k => k.id === kitId);
+        if(!kit) throw new Error("Parent Kit not found.");
 
-    const typeBadge = kit.type === 'Final Unit' 
-        ? '<span class="bg-green-900/50 text-green-400 px-2 rounded text-[10px] border border-green-500/30">FINAL</span>' 
-        : '<span class="bg-yellow-900/50 text-yellow-400 px-2 rounded text-[10px] border border-yellow-500/30">PART</span>';
-    
-    let linkedHtml = '';
-    if (kit.linkedKits && kit.linkedKits.length > 0) {
-        const links = kit.linkedKits.split(',');
-        linkedHtml = `
-            <div class="mt-2">
-                <button onclick="document.getElementById('linkedList-${kit.id}').classList.toggle('hidden')" class="text-[10px] bg-indigo-900/30 text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded hover:bg-indigo-900/50 transition flex items-center gap-1 w-full justify-center">
-                    <i class="fas fa-link"></i> ${links.length} Linked Kits Connected
-                </button>
-                <div id="linkedList-${kit.id}" class="hidden mt-1 p-2 bg-slate-900 rounded border border-white/5 space-y-1">
-                    ${links.map(lid => `<div class="text-[10px] text-slate-300 font-mono border-b border-white/5 pb-1 last:border-0"><i class="fas fa-angle-right text-indigo-500 mr-1"></i> ${lid}</div>`).join('')}
-                </div>
-            </div>
-        `;
-    }
+        // 5. Calculations REVERSE karo (Jo add hua tha, usko minus karo)
+        // Ensure hum NaN (Not a Number) issues se bachein
+        const inputToRemove = parseInt(log.input) || 0;
+        const outputToRemove = parseInt(log.output) || 0;
+        const rejectionToRemove = parseInt(log.rejection) || 0;
+        const semiToRemove = parseInt(log.semi) || 0;
+        const reworkToRemove = parseInt(log.rework) || 0;
 
-    const isComplete = totalDone >= kit.totalQty;
-    let closeBtn = kit.status === 'Closed' 
-        ? `<button class="flex-1 bg-slate-800 text-slate-500 py-2 rounded text-xs cursor-default">Completed & Locked</button>`
-        : (isComplete 
-            ? `<button onclick="closeKitAction('${kit.id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 py-2 rounded text-xs border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition font-bold"><i class="fas fa-check-circle mr-1"></i> Mark as Completed</button>` 
-            : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`);
+        const newUsedQty = Math.max(0, (kit.usedQty || 0) - inputToRemove);
+        const newPackedQty = Math.max(0, (kit.packedQty || 0) - outputToRemove);
+        const newRejectionQty = Math.max(0, (kit.rejectionQty || 0) - rejectionToRemove);
+        const newSemiQty = Math.max(0, (kit.semiQty || 0) - semiToRemove);
+        const newReworkQty = Math.max(0, (kit.reworkQty || 0) - reworkToRemove);
 
-    const transferBtn = (kit.status === 'Closed' || currentUserRole === 'Manager') 
-        ? '' 
-        : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
+        // 6. FIREBASE UPDATE (Parallel execution for speed)
+        await Promise.all([
+            deleteDoc(doc(db, "productionLogs", logId)), // Log Delete
+            updateDoc(doc(db, "kits", kitId), {         // Kit Update
+                usedQty: newUsedQty,
+                packedQty: newPackedQty,
+                rejectionQty: newRejectionQty,
+                semiQty: newSemiQty,
+                reworkQty: newReworkQty
+            })
+        ]);
 
-    let table = `
-    <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
-        <thead class="bg-slate-900 sticky top-0">
-            <tr>
-                <th class="p-2 w-24">DATE</th>
-                <th class="p-2 text-center">INPUT</th>
-                <th class="p-2 text-center text-green-400">FINAL</th>
-                <th class="p-2 text-center text-orange-400">SEMI</th>
-                <th class="p-2 text-center text-purple-400">REWORK</th>
-                <th class="p-2 text-center text-cyan-400">REM</th>
-                <th class="p-2 text-right text-red-400">REJ</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-white/5">`;
+        // 7. LOCAL DATA UPDATE (Taaki page reload na karna pade)
+        // Local Log Array se hatao
+        const logIndex = productionLogs.findIndex(l => l.id === logId);
+        if (logIndex > -1) productionLogs.splice(logIndex, 1);
 
-    logs.forEach(l => {
-        // --- 🔴 NEW: EDIT LOG DATE BUTTON (Only for Data Incharge) ---
-        let logDateEditBtn = '';
-        if(currentUserRole === 'Data Incharge') {
-            // Hum Log ID pass kar rahe hain edit function ko
-            logDateEditBtn = `<button onclick="editLogDate('${l.id}', '${l.date}', '${kit.id}')" class="ml-1 text-slate-500 hover:text-blue-400"><i class="fas fa-pen text-[8px]"></i></button>`;
+        // Local Kit Object update karo
+        kit.usedQty = newUsedQty;
+        kit.packedQty = newPackedQty;
+        kit.rejectionQty = newRejectionQty;
+        kit.semiQty = newSemiQty;
+        kit.reworkQty = newReworkQty;
+
+        // 8. UI REFRESH
+        alert("🗑️ Entry Deleted & Counts Reverted!");
+        // Detail card wapas render karo taaki naye numbers dikhein
+        const container = document.getElementById('dynamicDetailsContainer');
+        if(container && container.firstElementChild) {
+             renderManagerDetailCard(kit, container.firstElementChild);
         }
 
-        if (l.leader === 'System' || (l.remarks && l.remarks.includes('Transferred'))) {
-            table += `
-            <tr class="bg-orange-900/20 border-l-2 border-orange-500">
-                <td class="p-2 text-orange-400 font-mono align-top">${l.date} ${logDateEditBtn}</td>
-                <td colspan="6" class="p-2 text-left text-orange-200 italic tracking-wide align-middle">
-                    <i class="fas fa-exchange-alt mr-2"></i> ${l.remarks}
-                </td>
-            </tr>`;
-        } else {
-            table += `
-            <tr class="hover:bg-white/5 transition">
-                <td class="p-2 truncate font-mono">${l.date} ${logDateEditBtn}</td>
-                <td class="p-2 text-center text-slate-400">${l.input||0}</td>
-                <td class="p-2 text-center text-green-400 font-bold">${l.output||0}</td>
-                <td class="p-2 text-center text-orange-400">${l.semi||0}</td>
-                <td class="p-2 text-center text-purple-400">${l.rework||0}</td>
-                <td class="p-2 text-center text-cyan-400 font-mono">${currentRem}</td>
-                <td class="p-2 text-right text-red-400 font-bold">${l.rejection||0}</td>
-            </tr>`;
-        }
-    });
-    table += '</tbody></table>';
-
-    card.innerHTML = `
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <h3 class="text-3xl font-bold text-white tracking-tight">${kit.id}</h3>
-                <div class="flex flex-col gap-1 mt-1">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-mono text-slate-400 bg-slate-800 px-1 rounded">${kit.model}</span>
-                        <span class="text-xs font-bold text-cyan-400 bg-cyan-900/20 px-2 rounded border border-cyan-500/30">
-                            <i class="fas fa-industry mr-1"></i> ${kit.line}
-                        </span>
-                    </div>
-                    ${dateDisplayHtml}
-                </div>
-            </div>
-            <div class="text-right space-y-1">
-                ${typeBadge}
-                <div class="text-[10px] text-slate-500 uppercase tracking-widest">${kit.status}</div>
-                ${linkedHtml}
-            </div>
-        </div>
-        <div class="w-full bg-slate-800 h-2 rounded-full mb-6 overflow-hidden border border-white/5">
-            <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" style="width:${progress}%"></div>
-        </div>
-        <div class="grid grid-cols-3 gap-2 text-center mb-6">
-            <div class="bg-slate-800/80 p-2 rounded border border-white/5 relative group">
-                ${kit.status === 'Active' ? `<button onclick="editKitTotal('${kit.id}', ${kit.totalQty})" class="absolute top-1 right-1 text-slate-600 hover:text-blue-400"><i class="fas fa-edit text-[10px]"></i></button>` : ''}
-                <p class="text-[10px] text-slate-400 uppercase">Total</p>
-                <b class="text-white text-lg">${kit.totalQty}</b>
-            </div>
-            <div class="bg-slate-800/80 p-2 rounded border border-white/5"><p class="text-[10px] text-slate-400 uppercase">Input</p><b class="text-slate-200 text-lg">${kit.usedQty || 0}</b></div>
-            <div class="bg-slate-800/80 p-2 rounded border border-green-500/20"><p class="text-[10px] text-slate-400 uppercase">Packed</p><b class="text-green-400 text-lg">${kit.packedQty}</b></div>
-            <div class="bg-slate-800/80 p-2 rounded border border-orange-500/20"><p class="text-[10px] text-slate-400 uppercase">Semi FG</p><b class="text-orange-400 text-lg">${kit.semiQty || 0}</b></div>
-            <div class="bg-slate-800/80 p-2 rounded border border-purple-500/20"><p class="text-[10px] text-slate-400 uppercase">Rework</p><b class="text-purple-400 text-lg">${kit.reworkQty || 0}</b></div>
-            <div class="bg-slate-800/80 p-2 rounded border border-red-500/20"><p class="text-[10px] text-slate-400 uppercase">Reject</p><b class="text-red-400 text-lg">${kit.rejectionQty}</b></div>
-        </div>
-        <div class="bg-slate-900/50 p-3 rounded-xl border border-white/10 flex justify-between items-center mb-4">
-            <span class="text-xs text-slate-400 font-bold uppercase">Balance Remaining</span>
-            <span class="text-2xl font-mono font-bold text-cyan-400">${currentRem}</span>
-        </div>
-        <div class="flex gap-2 mb-4">
-             ${transferBtn}
-             <button onclick="shareKitWhatsApp('${kit.id}')" class="flex-1 bg-green-900/20 text-green-400 py-2 rounded text-xs border border-green-500/30 hover:bg-green-600 hover:text-white transition font-bold flex items-center justify-center gap-2">
-                 <i class="fab fa-whatsapp text-lg"></i> Share
-             </button>
-             ${closeBtn}
-        </div>
-        <div class="mt-4 pt-4 border-t border-white/5">
-            <p class="text-[10px] text-slate-500 mb-2 uppercase font-bold">Production History</p>
-            <div class="overflow-y-auto max-h-40 custom-scrollbar border border-white/5 rounded bg-darker/30">
-                ${table}
-            </div>
-        </div>
-    `;
+    } catch(err) {
+        console.error(err);
+        alert("Error Deleting Log: " + err.message);
+    }
 }
 function setupLeaderForm(kit, formContainer) {
     const form = formContainer.querySelector('form');
@@ -1398,5 +1303,242 @@ window.editLogDate = async function(logId, oldDate, kitId) {
             console.error(e);
             alert("Error updating log: " + e.message);
         }
+    }
+}
+// --- 🔄 UPDATE THIS FUNCTION IN SCRIPT.JS ---
+function renderManagerDetailCard(kit, card) {
+    const logs = productionLogs.filter(l => l.kitId === kit.id).reverse();
+    const totalDone = kit.packedQty + kit.rejectionQty;
+    const progress = Math.min((totalDone/kit.totalQty)*100, 100);
+    const currentRem = kit.totalQty - totalDone;
+    
+    // --- 🗓️ DATE EDIT BUTTON ---
+    let kitDateEditBtn = '';
+    if(currentUserRole === 'Data Incharge') {
+        kitDateEditBtn = `<button onclick="editKitDate('${kit.id}', '${kit.createdDate}')" class="ml-2 text-xs text-blue-500 hover:text-white bg-blue-900/20 px-1 rounded border border-blue-500/30" title="Edit Date"><i class="fas fa-pencil-alt"></i></button>`;
+    }
+
+    // --- 🗑️ DELETE KIT BUTTON (NEW) ---
+    // Ye button sirf Data Incharge ko dikhega
+    let deleteKitBtn = '';
+    if(currentUserRole === 'Data Incharge') {
+        deleteKitBtn = `
+            <button onclick="deleteKitFull('${kit.id}')" class="bg-red-900/20 text-red-500 border border-red-500/30 p-2 rounded hover:bg-red-600 hover:text-white transition flex items-center justify-center gap-2" title="PERMANENTLY DELETE KIT">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        `;
+    }
+
+    let dateDisplayHtml = '';
+    if (kit.status === 'Closed') {
+        const start = new Date(kit.createdDate);
+        const end = kit.closedDate ? new Date(kit.closedDate) : new Date(); 
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        const totalDays = diffDays === 0 ? 1 : diffDays;
+
+        dateDisplayHtml = `
+            <div class="flex items-center gap-2 text-[10px] bg-slate-900/80 p-1.5 rounded-lg border border-white/10 mt-1">
+                <span class="text-slate-500">${kit.createdDate}</span> ${kitDateEditBtn}
+                <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
+                <span class="text-yellow-400 font-bold bg-yellow-900/20 px-1 rounded border border-yellow-500/30">${totalDays} Days</span>
+                <i class="fas fa-arrow-right text-slate-600 text-[8px]"></i>
+                <span class="text-slate-500">${kit.closedDate || 'Today'}</span>
+            </div>
+        `;
+    } else {
+        dateDisplayHtml = `<span class="text-[10px] text-slate-500 flex items-center"><i class="far fa-calendar-alt mr-1"></i> ${kit.createdDate} ${kitDateEditBtn}</span>`;
+    }
+
+    const typeBadge = kit.type === 'Final Unit' 
+        ? '<span class="bg-green-900/50 text-green-400 px-2 rounded text-[10px] border border-green-500/30">FINAL</span>' 
+        : '<span class="bg-yellow-900/50 text-yellow-400 px-2 rounded text-[10px] border border-yellow-500/30">PART</span>';
+    
+    let linkedHtml = '';
+    if (kit.linkedKits && kit.linkedKits.length > 0) {
+        const links = kit.linkedKits.split(',');
+        linkedHtml = `
+            <div class="mt-2">
+                <button onclick="document.getElementById('linkedList-${kit.id}').classList.toggle('hidden')" class="text-[10px] bg-indigo-900/30 text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded hover:bg-indigo-900/50 transition flex items-center gap-1 w-full justify-center">
+                    <i class="fas fa-link"></i> ${links.length} Linked Kits Connected
+                </button>
+                <div id="linkedList-${kit.id}" class="hidden mt-1 p-2 bg-slate-900 rounded border border-white/5 space-y-1">
+                    ${links.map(lid => `<div class="text-[10px] text-slate-300 font-mono border-b border-white/5 pb-1 last:border-0"><i class="fas fa-angle-right text-indigo-500 mr-1"></i> ${lid}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    const isComplete = totalDone >= kit.totalQty;
+    let closeBtn = kit.status === 'Closed' 
+        ? `<button class="flex-1 bg-slate-800 text-slate-500 py-2 rounded text-xs cursor-default">Completed & Locked</button>`
+        : (isComplete 
+            ? `<button onclick="closeKitAction('${kit.id}')" class="flex-1 bg-emerald-600/20 text-emerald-400 py-2 rounded text-xs border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition font-bold"><i class="fas fa-check-circle mr-1"></i> Mark as Completed</button>` 
+            : `<button class="flex-1 bg-slate-800 text-slate-600 py-2 rounded text-xs cursor-not-allowed" disabled>Incomplete</button>`);
+
+    const transferBtn = (kit.status === 'Closed' || currentUserRole === 'Manager') 
+        ? '' 
+        : `<button onclick="initTransfer('${kit.id}')" class="flex-1 bg-orange-600/20 text-orange-400 py-2 rounded text-xs border border-orange-500/30 hover:bg-orange-600 hover:text-white transition">Transfer</button>`;
+
+    let table = `
+    <table class="w-full text-[10px] text-left text-slate-300 mt-4 table-fixed">
+        <thead class="bg-slate-900 sticky top-0">
+            <tr>
+                <th class="p-2 w-24">DATE</th>
+                <th class="p-2 text-center">INPUT</th>
+                <th class="p-2 text-center text-green-400">FINAL</th>
+                <th class="p-2 text-center text-orange-400">SEMI</th>
+                <th class="p-2 text-center text-purple-400">REWORK</th>
+                <th class="p-2 text-center text-cyan-400">REM</th>
+                <th class="p-2 text-right text-red-400">REJ</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">`;
+
+    logs.forEach(l => {
+        // --- LOG ROW ACTIONS ---
+        let logActionBtns = '';
+        if(currentUserRole === 'Data Incharge') {
+            logActionBtns = `
+                <div class="flex gap-2 mt-1">
+                    <button onclick="editLogDate('${l.id}', '${l.date}', '${kit.id}')" class="text-slate-500 hover:text-blue-400" title="Edit Date"><i class="fas fa-pen"></i></button>
+                    <button onclick="deleteLogEntry('${l.id}', '${kit.id}')" class="text-slate-500 hover:text-red-500" title="Delete Entry"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+        }
+
+        if (l.leader === 'System' || (l.remarks && l.remarks.includes('Transferred'))) {
+            table += `
+            <tr class="bg-orange-900/20 border-l-2 border-orange-500">
+                <td class="p-2 text-orange-400 font-mono align-top">${l.date} ${logActionBtns}</td>
+                <td colspan="6" class="p-2 text-left text-orange-200 italic tracking-wide align-middle">
+                    <i class="fas fa-exchange-alt mr-2"></i> ${l.remarks}
+                </td>
+            </tr>`;
+        } else {
+            table += `
+            <tr class="hover:bg-white/5 transition">
+                <td class="p-2 truncate font-mono">${l.date} ${logActionBtns}</td>
+                <td class="p-2 text-center text-slate-400">${l.input||0}</td>
+                <td class="p-2 text-center text-green-400 font-bold">${l.output||0}</td>
+                <td class="p-2 text-center text-orange-400">${l.semi||0}</td>
+                <td class="p-2 text-center text-purple-400">${l.rework||0}</td>
+                <td class="p-2 text-center text-cyan-400 font-mono">${currentRem}</td>
+                <td class="p-2 text-right text-red-400 font-bold">${l.rejection||0}</td>
+            </tr>`;
+        }
+    });
+    table += '</tbody></table>';
+
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h3 class="text-3xl font-bold text-white tracking-tight">${kit.id}</h3>
+                <div class="flex flex-col gap-1 mt-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-mono text-slate-400 bg-slate-800 px-1 rounded">${kit.model}</span>
+                        <span class="text-xs font-bold text-cyan-400 bg-cyan-900/20 px-2 rounded border border-cyan-500/30">
+                            <i class="fas fa-industry mr-1"></i> ${kit.line}
+                        </span>
+                    </div>
+                    ${dateDisplayHtml}
+                </div>
+            </div>
+            <div class="text-right space-y-1">
+                ${typeBadge}
+                <div class="text-[10px] text-slate-500 uppercase tracking-widest">${kit.status}</div>
+                ${linkedHtml}
+            </div>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full mb-6 overflow-hidden border border-white/5">
+            <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" style="width:${progress}%"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center mb-6">
+            <div class="bg-slate-800/80 p-2 rounded border border-white/5 relative group">
+                ${kit.status === 'Active' ? `<button onclick="editKitTotal('${kit.id}', ${kit.totalQty})" class="absolute top-1 right-1 text-slate-600 hover:text-blue-400"><i class="fas fa-edit text-[10px]"></i></button>` : ''}
+                <p class="text-[10px] text-slate-400 uppercase">Total</p>
+                <b class="text-white text-lg">${kit.totalQty}</b>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded border border-white/5"><p class="text-[10px] text-slate-400 uppercase">Input</p><b class="text-slate-200 text-lg">${kit.usedQty || 0}</b></div>
+            <div class="bg-slate-800/80 p-2 rounded border border-green-500/20"><p class="text-[10px] text-slate-400 uppercase">Packed</p><b class="text-green-400 text-lg">${kit.packedQty}</b></div>
+            <div class="bg-slate-800/80 p-2 rounded border border-orange-500/20"><p class="text-[10px] text-slate-400 uppercase">Semi FG</p><b class="text-orange-400 text-lg">${kit.semiQty || 0}</b></div>
+            <div class="bg-slate-800/80 p-2 rounded border border-purple-500/20"><p class="text-[10px] text-slate-400 uppercase">Rework</p><b class="text-purple-400 text-lg">${kit.reworkQty || 0}</b></div>
+            <div class="bg-slate-800/80 p-2 rounded border border-red-500/20"><p class="text-[10px] text-slate-400 uppercase">Reject</p><b class="text-red-400 text-lg">${kit.rejectionQty}</b></div>
+        </div>
+        <div class="bg-slate-900/50 p-3 rounded-xl border border-white/10 flex justify-between items-center mb-4">
+            <span class="text-xs text-slate-400 font-bold uppercase">Balance Remaining</span>
+            <span class="text-2xl font-mono font-bold text-cyan-400">${currentRem}</span>
+        </div>
+        
+        <!-- BUTTONS ROW -->
+        <div class="flex gap-2 mb-4">
+             <!-- DELETE BUTTON IS HERE -->
+             ${deleteKitBtn} 
+             
+             ${transferBtn}
+             
+             <button onclick="shareKitWhatsApp('${kit.id}')" class="flex-1 bg-green-900/20 text-green-400 py-2 rounded text-xs border border-green-500/30 hover:bg-green-600 hover:text-white transition font-bold flex items-center justify-center gap-2">
+                 <i class="fab fa-whatsapp text-lg"></i> Share
+             </button>
+             ${closeBtn}
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-white/5">
+            <p class="text-[10px] text-slate-500 mb-2 uppercase font-bold">Production History</p>
+            <div class="overflow-y-auto max-h-40 custom-scrollbar border border-white/5 rounded bg-darker/30">
+                ${table}
+            </div>
+        </div>
+    `;
+}
+// --- ☢️ PERMANENT DELETE KIT FUNCTION ---
+// Copy this at the very bottom of script.js
+window.deleteKitFull = async function(kitId) {
+    // 1. Permission Check
+    if(currentUserRole !== 'Data Incharge') return alert("Access Denied: You do not have permission to delete kits.");
+
+    // 2. High Level Confirmation
+    const conf1 = confirm(`⚠️ EXTREME DANGER ZONE\n\nYou are about to DELETE Kit: ${kitId}\n\nThis will remove the Kit and ALL its production history permanently.\nThis action CANNOT be undone.\n\nAre you absolutely sure?`);
+    if(!conf1) return;
+
+    // 3. Double Check (Safety Net)
+    const conf2 = prompt(`To confirm deletion, please type "DELETE" below:`);
+    if(conf2 !== "DELETE") return alert("Deletion Cancelled. You must type DELETE (all caps).");
+
+    try {
+        // --- A. Database Cleaning ---
+        
+        // 1. Delete the Main Kit Document
+        await deleteDoc(doc(db, "kits", kitId));
+
+        // 2. Find and Delete all Associated Logs (Cleanup)
+        // Pehle logs dhoondo
+        const q = query(collection(db, "productionLogs"), where("kitId", "==", kitId));
+        const querySnapshot = await getDocs(q);
+        
+        // Ek ek karke saare logs delete karo
+        const deletePromises = [];
+        querySnapshot.forEach((docSnap) => {
+            deletePromises.push(deleteDoc(docSnap.ref));
+        });
+        await Promise.all(deletePromises);
+
+        // --- B. Local Data Cleaning ---
+        
+        // Local array se kit hatao
+        kits = kits.filter(k => k.id !== kitId);
+        
+        // Local logs array se logs hatao
+        productionLogs = productionLogs.filter(l => l.kitId !== kitId);
+
+        // --- C. Finish ---
+        alert(`✅ Kit ${kitId} and all its data have been deleted.`);
+        
+        // Wapas list par bhejo
+        switchView('activeUnitsView');
+
+    } catch (e) {
+        console.error(e);
+        alert("Error Deleting Kit: " + e.message);
     }
 }
